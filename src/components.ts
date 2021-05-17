@@ -1,4 +1,5 @@
 import { CollectionService } from "@rbxts/services";
+import { t } from "@rbxts/t";
 import { Service, Controller, OnInit, Flamework, OnStart, OnTick, OnPhysics, OnRender } from "./flamework";
 import { Constructor } from "./types";
 
@@ -8,12 +9,22 @@ interface ComponentInfo {
 	metadata: Flamework.Metadata;
 }
 
-export class BaseComponent {
+export class BaseComponent<A = {}> {
+	/**
+	 * Attributes attached to this instance.
+	 */
+	public attributes!: A;
+
 	/**
 	 * The instance this component is attached to.
 	 * This should only be called in a component lifecycle event.
 	 */
 	public instance!: Instance;
+
+	setInstance(instance: Instance) {
+		this.instance = instance;
+		this.attributes = instance.GetAttributes() as never;
+	}
 
 	/**
 	 * Destroys this component instance.
@@ -32,22 +43,22 @@ export class BaseComponent {
 	loadOrder: 0,
 })
 export class Components implements OnInit, OnStart, OnTick, OnPhysics, OnRender {
-	private components = new Array<ComponentInfo>();
+	private components = new Map<Constructor, ComponentInfo>();
 	private activeComponents = new Map<Instance, Map<unknown, BaseComponent>>();
 
-	private tick = new Array<BaseComponent & OnTick>();
-	private physics = new Array<BaseComponent & OnPhysics>();
-	private render = new Array<BaseComponent & OnRender>();
+	private tick = new Set<BaseComponent & OnTick>();
+	private physics = new Set<BaseComponent & OnPhysics>();
+	private render = new Set<BaseComponent & OnRender>();
 
 	onInit() {
-		const components = new Array<ComponentInfo>();
+		const components = new Map<Constructor, ComponentInfo>();
 		for (const [ctor, metadata] of Flamework.metadata) {
 			const component = metadata.decorators
 				.map((x) => x.config)
 				.find((x): x is Flamework.ConfigType<"Component"> => x.type === "Component");
 
 			if (component) {
-				components.push({
+				components.set(ctor, {
 					metadata,
 					ctor: ctor as Constructor<BaseComponent>,
 					config: component,
@@ -60,7 +71,7 @@ export class Components implements OnInit, OnStart, OnTick, OnPhysics, OnRender 
 	}
 
 	onStart() {
-		for (const { config, ctor, metadata } of this.components) {
+		for (const [, { config, ctor, metadata }] of this.components) {
 			if (config.tag !== undefined) {
 				CollectionService.GetInstanceAddedSignal(config.tag).Connect((instance) => {
 					this.addComponent(instance, ctor);
@@ -68,6 +79,9 @@ export class Components implements OnInit, OnStart, OnTick, OnPhysics, OnRender 
 				CollectionService.GetInstanceRemovedSignal(config.tag).Connect((instance) => {
 					this.removeComponent(instance, ctor);
 				});
+				for (const instance of CollectionService.GetTagged(config.tag)) {
+					this.safeCall(`Failed to instantiate ${instance}`, () => this.addComponent(instance, ctor));
+				}
 			}
 		}
 	}
@@ -93,6 +107,19 @@ export class Components implements OnInit, OnStart, OnTick, OnPhysics, OnRender 
 		}
 	}
 
+	private validateAttributes(instance: Instance, guards: { [key: string]: t.check<unknown> }) {
+		const attributes = instance.GetAttributes() as { [key: string]: unknown };
+
+		for (const [key, guard] of pairs(guards)) {
+			const attribute = attributes[key];
+			if (!guard(attribute)) {
+				return false;
+			}
+		}
+
+		return true;
+	}
+
 	private safeCall(message: string, func: () => void) {
 		coroutine.wrap(() => {
 			const result = opcall(func);
@@ -104,7 +131,7 @@ export class Components implements OnInit, OnStart, OnTick, OnPhysics, OnRender 
 	}
 
 	private setupComponent(instance: Instance, component: BaseComponent) {
-		component.instance = instance;
+		component.setInstance(instance);
 
 		if (Flamework.implements<OnStart>(component)) {
 			const name = instance.GetFullName();
@@ -112,15 +139,15 @@ export class Components implements OnInit, OnStart, OnTick, OnPhysics, OnRender 
 		}
 
 		if (Flamework.implements<OnRender>(component)) {
-			this.render.push(component);
+			this.render.add(component);
 		}
 
 		if (Flamework.implements<OnPhysics>(component)) {
-			this.physics.push(component);
+			this.physics.add(component);
 		}
 
 		if (Flamework.implements<OnTick>(component)) {
-			this.tick.push(component);
+			this.tick.add(component);
 		}
 	}
 
@@ -147,6 +174,16 @@ export class Components implements OnInit, OnStart, OnTick, OnPhysics, OnRender 
 	addComponent<T extends BaseComponent>(instance: Instance, componentSpecifier?: Constructor<T> | string) {
 		const component = this.getComponentFromSpecifier(componentSpecifier);
 		assert(component, "Could not find component from specifier");
+
+		const componentInfo = this.components.get(component);
+		assert(componentInfo, "Provided componentSpecifier does not exist");
+
+		const attributeGuards = componentInfo.config.attributes;
+		if (attributeGuards !== undefined)
+			assert(
+				this.validateAttributes(instance, attributeGuards),
+				`${instance.GetFullName()} has invalid attributes for ${componentInfo.metadata.identifier}`,
+			);
 
 		let activeComponents = this.activeComponents.get(instance);
 		if (!activeComponents) this.activeComponents.set(instance, (activeComponents = new Map()));
@@ -175,6 +212,10 @@ export class Components implements OnInit, OnStart, OnTick, OnPhysics, OnRender 
 
 		existingComponent.destroy();
 		activeComponents.delete(component);
+
+		this.render.delete(existingComponent as never);
+		this.physics.delete(existingComponent as never);
+		this.tick.delete(existingComponent as never);
 
 		if (activeComponents.size() === 0) {
 			this.activeComponents.delete(instance);

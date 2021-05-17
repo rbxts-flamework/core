@@ -1,4 +1,5 @@
 import { Players, RunService } from "@rbxts/services";
+import { t } from "@rbxts/t";
 import { Constructor } from "./types";
 
 export namespace Flamework {
@@ -32,6 +33,7 @@ export namespace Flamework {
 
 	export interface ComponentConfig {
 		tag?: string;
+		attributes?: { [key: string]: t.check<unknown> };
 	}
 	export interface ServiceConfig {
 		loadOrder?: number;
