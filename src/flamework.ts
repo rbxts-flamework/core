@@ -283,6 +283,11 @@ export namespace Flamework {
 	 * Check if object implements the specified interface.
 	 */
 	export declare function implements<T>(object: unknown): object is T;
+
+	/**
+	 * Creates a type guard from any arbitrary type.
+	 */
+	export declare function createGuard<T>(): t.check<T>;
 }
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
