@@ -395,27 +395,3 @@ export interface OnRender {
 	 */
 	onRender(dt: number): void;
 }
-
-export interface LargeInterface {
-	a?: LargeInterface;
-	b: string;
-	_0: number;
-	_1: number;
-	_2: number;
-	_3: number;
-	_4: number;
-	_5: number;
-	_6: number;
-	_7: number;
-	_8: number;
-	_9: number;
-	_10: number;
-	_11: number;
-	_12: number;
-	_13: number;
-	_14: number;
-	_15: number;
-	_16: number;
-	_17: number;
-	_18: number;
-}
