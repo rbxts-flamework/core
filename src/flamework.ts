@@ -34,6 +34,7 @@ export namespace Flamework {
 	export interface ComponentConfig {
 		tag?: string;
 		attributes?: { [key: string]: t.check<unknown> };
+		refreshAttributes?: boolean;
 	}
 	export interface ServiceConfig {
 		loadOrder?: number;

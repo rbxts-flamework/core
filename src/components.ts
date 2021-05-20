@@ -1,3 +1,4 @@
+import Maid from "@rbxts/maid";
 import { CollectionService } from "@rbxts/services";
 import { t } from "@rbxts/t";
 import { Service, Controller, OnInit, Flamework, OnStart, OnTick, OnPhysics, OnRender } from "./flamework";
@@ -10,6 +11,11 @@ interface ComponentInfo {
 }
 
 export class BaseComponent<A = {}> {
+	/**
+	 * A maid that will be destroyed when the component is.
+	 */
+	public maid = new Maid();
+
 	/**
 	 * Attributes attached to this instance.
 	 */
@@ -29,7 +35,9 @@ export class BaseComponent<A = {}> {
 	/**
 	 * Destroys this component instance.
 	 */
-	destroy() {}
+	destroy() {
+		this.maid.Destroy();
+	}
 }
 
 /**
@@ -130,7 +138,7 @@ export class Components implements OnInit, OnStart, OnTick, OnPhysics, OnRender 
 		})();
 	}
 
-	private setupComponent(instance: Instance, component: BaseComponent) {
+	private setupComponent(instance: Instance, component: BaseComponent, { config }: ComponentInfo) {
 		component.setInstance(instance);
 
 		if (Flamework.implements<OnStart>(component)) {
@@ -140,14 +148,35 @@ export class Components implements OnInit, OnStart, OnTick, OnPhysics, OnRender 
 
 		if (Flamework.implements<OnRender>(component)) {
 			this.render.add(component);
+			component.maid.GiveTask(() => this.render.delete(component));
 		}
 
 		if (Flamework.implements<OnPhysics>(component)) {
 			this.physics.add(component);
+			component.maid.GiveTask(() => this.physics.delete(component));
 		}
 
 		if (Flamework.implements<OnTick>(component)) {
 			this.tick.add(component);
+			component.maid.GiveTask(() => this.tick.delete(component));
+		}
+
+		if (config.refreshAttributes === undefined || config.refreshAttributes) {
+			const attributes = config.attributes;
+			if (attributes !== undefined) {
+				for (const [attribute, guard] of pairs(attributes)) {
+					if (typeIs(attribute, "string")) {
+						component.maid.GiveTask(
+							instance.GetAttributeChangedSignal(attribute).Connect(() => {
+								const value = instance.GetAttribute(attribute);
+								if (guard(value)) {
+									(component.attributes as Map<string, unknown>).set(attribute, value);
+								}
+							}),
+						);
+					}
+				}
+			}
 		}
 	}
 
@@ -194,7 +223,7 @@ export class Components implements OnInit, OnStart, OnTick, OnPhysics, OnRender 
 		const componentInstance = Flamework.createDependency(component) as T;
 		activeComponents.set(component, componentInstance);
 
-		this.setupComponent(instance, componentInstance);
+		this.setupComponent(instance, componentInstance, componentInfo);
 		return componentInstance;
 	}
 
@@ -212,10 +241,6 @@ export class Components implements OnInit, OnStart, OnTick, OnPhysics, OnRender 
 
 		existingComponent.destroy();
 		activeComponents.delete(component);
-
-		this.render.delete(existingComponent as never);
-		this.physics.delete(existingComponent as never);
-		this.tick.delete(existingComponent as never);
 
 		if (activeComponents.size() === 0) {
 			this.activeComponents.delete(instance);
