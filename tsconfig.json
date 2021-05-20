@@ -24,7 +24,8 @@
 		"plugins": [
 			{
 				"transform": "../Transformer",
-				"$rbxpackmode$": true
+				"$rbxpackmode$": true,
+				"hashPrefix": "$",
 			}
 		]
 	}
