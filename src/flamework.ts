@@ -163,6 +163,13 @@ export namespace Flamework {
 		}
 	}
 
+	function fastSpawn(func: () => unknown) {
+		const bindable = new Instance("BindableEvent");
+		bindable.Event.Connect(func);
+		bindable.Fire();
+		bindable.Destroy();
+	}
+
 	const externalClasses = new Set<Constructor>();
 
 	/**
@@ -221,16 +228,10 @@ export namespace Flamework {
 			if (Flamework.implements<OnRender>(dependency)) render.push(dependency);
 		}
 
-		for (const [dependency, objectMetadata] of init) {
-			const result = opcall(() => {
-				const initResult = dependency.onInit();
-				if (Promise.is(initResult)) {
-					initResult.await();
-				}
-			});
-
-			if (!result.success) {
-				warn(`failed to initialize dependency with id ${objectMetadata.identifier}`);
+		for (const [dependency] of init) {
+			const initResult = dependency.onInit();
+			if (Promise.is(initResult)) {
+				initResult.await();
 			}
 		}
 
@@ -256,14 +257,8 @@ export namespace Flamework {
 			});
 		}
 
-		for (const [dependency, objectMetadata] of start) {
-			coroutine.wrap(() => {
-				const result = opcall(() => dependency.onStart());
-
-				if (!result.success) {
-					warn(`failed to start dependency with id ${objectMetadata.identifier}`);
-				}
-			})();
+		for (const [dependency] of start) {
+			fastSpawn(() => dependency.onStart());
 		}
 
 		return dependencies;
