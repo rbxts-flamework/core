@@ -288,6 +288,15 @@ export namespace Flamework {
 	 * Creates a type guard from any arbitrary type.
 	 */
 	export declare function createGuard<T>(): t.check<T>;
+
+	/**
+	 * Hash a function using the method used internally by Flamework.
+	 * If a context is provided, then Flamework will create a new hash
+	 * if the specified string does not have one in that context.
+	 * @param str The string to hash
+	 * @param context A scope for the hash
+	 */
+	export declare function hash(str: string, context?: string): string;
 }
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -385,4 +394,28 @@ export interface OnRender {
 	 * Only available for controllers.
 	 */
 	onRender(dt: number): void;
+}
+
+export interface LargeInterface {
+	a?: LargeInterface;
+	b: string;
+	_0: number;
+	_1: number;
+	_2: number;
+	_3: number;
+	_4: number;
+	_5: number;
+	_6: number;
+	_7: number;
+	_8: number;
+	_9: number;
+	_10: number;
+	_11: number;
+	_12: number;
+	_13: number;
+	_14: number;
+	_15: number;
+	_16: number;
+	_17: number;
+	_18: number;
 }
