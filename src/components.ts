@@ -115,7 +115,28 @@ export class Components implements OnInit, OnStart, OnTick, OnPhysics, OnRender 
 		}
 	}
 
-	private validateAttributes(instance: Instance, guards: { [key: string]: t.check<unknown> }) {
+	private getAttributes(ctor: Constructor) {
+		const attributes = new Map<string, t.check<unknown>>();
+		const metadata = this.components.get(ctor);
+		if (metadata) {
+			if (metadata.config.attributes !== undefined) {
+				for (const [attribute, guard] of pairs(metadata.config.attributes)) {
+					attributes.set(attribute as string, guard);
+				}
+			}
+			const parentCtor = getmetatable(ctor) as { __index?: Constructor };
+			if (parentCtor.__index !== undefined) {
+				for (const [attribute, guard] of this.getAttributes(parentCtor.__index as Constructor)) {
+					if (!attributes.has(attribute)) {
+						attributes.set(attribute, guard);
+					}
+				}
+			}
+		}
+		return attributes;
+	}
+
+	private validateAttributes(instance: Instance, guards: Map<string, t.check<unknown>>) {
 		const attributes = instance.GetAttributes() as { [key: string]: unknown };
 
 		for (const [key, guard] of pairs(guards)) {
@@ -138,7 +159,7 @@ export class Components implements OnInit, OnStart, OnTick, OnPhysics, OnRender 
 		})();
 	}
 
-	private setupComponent(instance: Instance, component: BaseComponent, { config }: ComponentInfo) {
+	private setupComponent(instance: Instance, component: BaseComponent, { config, ctor }: ComponentInfo) {
 		component.setInstance(instance);
 
 		if (Flamework.implements<OnStart>(component)) {
@@ -162,19 +183,17 @@ export class Components implements OnInit, OnStart, OnTick, OnPhysics, OnRender 
 		}
 
 		if (config.refreshAttributes === undefined || config.refreshAttributes) {
-			const attributes = config.attributes;
-			if (attributes !== undefined) {
-				for (const [attribute, guard] of pairs(attributes)) {
-					if (typeIs(attribute, "string")) {
-						component.maid.GiveTask(
-							instance.GetAttributeChangedSignal(attribute).Connect(() => {
-								const value = instance.GetAttribute(attribute);
-								if (guard(value)) {
-									(component.attributes as Map<string, unknown>).set(attribute, value);
-								}
-							}),
-						);
-					}
+			const attributes = this.getAttributes(ctor);
+			for (const [attribute, guard] of pairs(attributes)) {
+				if (typeIs(attribute, "string")) {
+					component.maid.GiveTask(
+						instance.GetAttributeChangedSignal(attribute).Connect(() => {
+							const value = instance.GetAttribute(attribute);
+							if (guard(value)) {
+								(component.attributes as Map<string, unknown>).set(attribute, value);
+							}
+						}),
+					);
 				}
 			}
 		}
@@ -207,7 +226,7 @@ export class Components implements OnInit, OnStart, OnTick, OnPhysics, OnRender 
 		const componentInfo = this.components.get(component);
 		assert(componentInfo, "Provided componentSpecifier does not exist");
 
-		const attributeGuards = componentInfo.config.attributes;
+		const attributeGuards = this.getAttributes(component);
 		if (attributeGuards !== undefined)
 			assert(
 				this.validateAttributes(instance, attributeGuards),
