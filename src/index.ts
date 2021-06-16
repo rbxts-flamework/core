@@ -12,4 +12,5 @@ export {
 	OnTick,
 } from "./flamework";
 
+export { Networking } from "./networking";
 export { BaseComponent, Components } from "./components";

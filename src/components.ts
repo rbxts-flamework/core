@@ -74,8 +74,6 @@ export class Components implements OnInit, OnStart, OnTick, OnPhysics, OnRender 
 			}
 		}
 		this.components = components;
-
-		print("onInit", this.components.size());
 	}
 
 	onStart() {

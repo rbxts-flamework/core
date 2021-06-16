@@ -1,5 +1,6 @@
 import { Players, RunService } from "@rbxts/services";
 import { t } from "@rbxts/t";
+import { Networking } from "./networking";
 import { Constructor } from "./types";
 
 export namespace Flamework {
@@ -284,6 +285,14 @@ export namespace Flamework {
 	 * Creates a type guard from any arbitrary type.
 	 */
 	export declare function createGuard<T>(): t.check<T>;
+
+	/**
+	 * Creates a type guard from any arbitrary type.
+	 */
+	export declare function createEvent<S, C>(
+		serverMiddleware?: Networking.EventMiddleware<S>,
+		clientMiddleware?: Networking.EventMiddleware<C>,
+	): Networking.EventType<S, C>;
 
 	/**
 	 * Hash a function using the method used internally by Flamework.
