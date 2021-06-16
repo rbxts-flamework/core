@@ -18,7 +18,8 @@
   "license": "ISC",
   "types": "out/index.d.ts",
   "files": [
-    "out"
+    "out",
+	"flamework.build"
   ],
   "publishConfig": {
     "access": "public"
