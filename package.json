@@ -1,6 +1,6 @@
 {
   "name": "@rbxts/flamework",
-  "version": "0.0.2",
+  "version": "0.0.3",
   "description": "",
   "main": "out/init.lua",
   "scripts": {
