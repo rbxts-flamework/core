@@ -246,7 +246,7 @@ export namespace Networking {
 				let bindable = connections.get(event as string);
 				if (!bindable) connections.set(event as string, (bindable = new Instance("BindableEvent")));
 
-				return bindable.Event.Connect((player: Player, ...args: unknown[]) => {
+				return bindable.Event.Connect((player?: Player, ...args: unknown[]) => {
 					if (additionalGuards) {
 						for (let i = 0; i < guards.size(); i++) {
 							const guard = (additionalGuards as Array<t.check<unknown>>)[i];
@@ -255,7 +255,7 @@ export namespace Networking {
 							}
 						}
 					}
-					return cb(player, ...(args as never));
+					return cb(...(args as never));
 				});
 			};
 
