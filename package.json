@@ -1,6 +1,6 @@
 {
   "name": "@rbxts/flamework",
-  "version": "0.0.1",
+  "version": "0.0.2",
   "description": "",
   "main": "out/init.lua",
   "scripts": {
@@ -19,7 +19,7 @@
   "types": "out/index.d.ts",
   "files": [
     "out",
-	"flamework.build"
+    "flamework.build"
   ],
   "publishConfig": {
     "access": "public"
