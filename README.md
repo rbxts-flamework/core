@@ -46,7 +46,7 @@ import { Flamework } from "@rbxts/flamework";
 Flamework.addPaths("src/server/services", "src/server/components");
 
 // client
-Flamework.addPaths("src/client/controllers", "src/server/components");
+Flamework.addPaths("src/client/controllers", "src/client/components");
 
 // both, after preloading
 Flamework.ignite();
