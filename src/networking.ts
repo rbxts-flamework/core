@@ -140,11 +140,7 @@ export namespace Networking {
 				const bindable = connections.get(name);
 				if (!bindable) return warn("no bindable for", name);
 
-				if (player) {
-					return bindable.Fire(player, ...args);
-				} else {
-					return bindable.Fire(...args);
-				}
+				return bindable.Fire(player, ...args);
 			};
 
 			let startingExecutor = executor;
