@@ -218,6 +218,8 @@ It is generally not safe to use other dependencies in OnInit.
 The OnStart event is called after OnInit for all services/controllers.
 Yielding in one will not delay starting of other services.
 
+This is also called for components, after being instantiated onto an instance.
+
 ## OnTick, OnPhysics, OnRender
 
 These events connect to the corresponding RunService event.
