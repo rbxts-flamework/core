@@ -134,11 +134,104 @@ const myService_1 = Dependency<MyService>();
 const myService_2 = Dependency(MyService);
 ```
 
-## Networking
+## Components
+
+Flamework supports components (similar to Unity) that you can attach to instances, and hook into lifecycle events.
+
+They will be automatically attached to instances if a Tag field is specified, as well as destroyed.
+
+### Component class
+
+```ts
+@Component({
+	tag: "my-collection-service-tag",
+})
+class MyComponent extends BaseComponent implements OnStart {
+	onStart() {
+		print(this.instance);
+		this.maid.GiveTask(...);
+	}
+
+	destroy() {
+		super.destroy();
+		// cleanup
+	}
+}
+```
+
+### Using attributes
+
+Components natively supports attributes which will have type guards automatically generated.
+```ts
+interface Attributes {
+	myAttribute: string,
+	myType: "specific" | "strings",
+	myOtherAttribute: 1 | 2,
+}
+
+@Component({
+	tag: "my-collection-service-tag",
+})
+class MyComponent extends BaseComponent<Attributes> implements OnStart {
+	onStart() {
+		print(
+			this.attributes.myAttribute,
+			this.attributes.myType,
+			this.attributes.myOtherAttribute
+		)
+	}
+}
+```
+
+### Scripting API
+
+You can use the Components scripting API to grab a component attached to an instance.
+
+For cases where CollectionService tags are not appropriate, or do not fit your use case, you can also use the API to add and remove components.
+
+The API is exposed as a service/controller, so you can fetch it using the Dependency macro or constructor DI.
+
+```ts
+import { Components } from "@rbxts/flamework";
+
+const components = Dependency<Components>();
+components.addComponent<MyComponent>(game);
+
+const myComponent = components.getComponent<MyComponent>(game);
+myComponent.method();
+
+components.removeComponent<MyComponent>(game);
+```
+
+# Execution model
+
+![execution model](assets/execution-model.png)
+
+## OnInit
+The OnInit event is called sequentially for every service and controller.
+Yielding in OnInit will delay the initialization of other services/controllers.
+Important initialization should be done in this event.
+
+It is generally not safe to use other dependencies in OnInit.
+
+## OnStart
+The OnStart event is called after OnInit for all services/controllers.
+Yielding in one will not delay starting of other services.
+
+## OnTick, OnPhysics, OnRender
+
+These events connect to the corresponding RunService event.
+| Lifecycle Event | RunService Event |
+|-----------------|------------------|
+| OnTick          | Heartbeat        |
+| OnPhysics       | Stepped          |
+| OnRender        | RenderStepped    |
+
+# Networking
 
 Flamework comes with a networking solution built in. Flamework's networking is designed with the intent of being as simple as possible and requiring as little user intervention as possible.
 
-### Registering events
+## Registering events
 
 ```ts
 // somewhere in shared
@@ -173,7 +266,7 @@ import { GlobalEvents } from "..";
 export const Events = GlobalEvents.client
 ```
 
-### Using events on the server
+## Using events on the server
 The server is able to broadcast to all players, broadcast to all players except certain ones and fire to specific players.
 
 ```ts
@@ -196,7 +289,7 @@ Events.connect("hit", (player, humanoid) => {
 })
 ```
 
-### Using events on the server
+## Using events on the client
 Identical to the server, except you cannot use .broadcast or .except
 
 ```ts
