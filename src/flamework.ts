@@ -12,6 +12,7 @@ export namespace Flamework {
 	export interface Metadata {
 		identifier: string;
 		isExternal: boolean;
+		isPatched?: boolean;
 		implements?: string[];
 		dependencies?: string[];
 		decorators: Decorator[];
@@ -46,7 +47,14 @@ export namespace Flamework {
 	export interface ArbitraryConfig {
 		arguments: unknown[];
 	}
+	export interface FlameworkConfig {
+		isDefault: boolean;
+		loadOverride?: Constructor<unknown>[];
+	}
 
+	export const flameworkConfig: FlameworkConfig = {
+		isDefault: true,
+	};
 	export let isInitialized = false;
 
 	export const metadata = new Map<Constructor, Metadata>();
@@ -118,16 +126,23 @@ export namespace Flamework {
 			preloadPaths.push(currentPath);
 		}
 
+		const preload = (moduleScript: ModuleScript) => {
+			const start = os.clock();
+			const result = opcall(require, moduleScript);
+			const endTime = math.floor((os.clock() - start) * 1000);
+			if (!result.success) {
+				throw `${moduleScript.GetFullName()} failed to preload (${endTime}ms): ${result.error}`;
+			}
+			print(`Preloaded ${moduleScript.GetFullName()} (${endTime}ms)`);
+		};
+
 		for (const path of preloadPaths) {
+			if (path.IsA("ModuleScript")) {
+				preload(path);
+			}
 			for (const instance of path.GetDescendants()) {
 				if (instance.IsA("ModuleScript")) {
-					const start = os.clock();
-					const result = opcall(require, instance);
-					const endTime = math.floor((os.clock() - start) * 1000);
-					if (!result.success) {
-						throw `${instance.GetFullName()} failed to preload (${endTime}ms): ${result.error}`;
-					}
-					print(`Preloaded ${instance.GetFullName()} (${endTime}ms)`);
+					preload(instance);
 				}
 			}
 		}
@@ -195,14 +210,33 @@ export namespace Flamework {
 	 *
 	 * @returns All the dependencies that have been loaded.
 	 */
-	export function ignite() {
+	export function ignite(patchedConfig?: Partial<FlameworkConfig>) {
 		if (hasFlameworkIgnited) throw "Flamework.ignite() should only be called once";
 		hasFlameworkIgnited = true;
 
-		const dependencies = new Array<[unknown, Metadata, LoadableConfigs]>();
+		if (patchedConfig) {
+			for (const [key, value] of pairs(patchedConfig)) {
+				flameworkConfig[key as never] = value as never;
+			}
+		}
 
-		const decoratorType = RunService.IsServer() ? "Service" : "Controller";
 		for (const [ctor, objectMetadata] of metadata) {
+			if (flameworkConfig.loadOverride && !flameworkConfig.loadOverride.includes(ctor)) {
+				if (!objectMetadata.isPatched) continue;
+			}
+			resolveDependency(objectMetadata.identifier);
+		}
+
+		const dependencies = new Array<[unknown, Metadata, LoadableConfigs]>();
+		const decoratorType = RunService.IsServer() ? "Service" : "Controller";
+
+		for (const [id] of resolvedDependencies) {
+			const ctor = idToTarget.get(id);
+			if (ctor === undefined) throw `Could not find constructor for ${id}`;
+
+			const objectMetadata = metadata.get(ctor);
+			if (objectMetadata === undefined) throw `Could not find metadata for ${id}`;
+
 			const decorator = getDecorator(ctor, decoratorType);
 			if (!decorator) continue;
 
@@ -245,7 +279,7 @@ export namespace Flamework {
 			}
 		});
 
-		RunService.Stepped.Connect((dt, time) => {
+		RunService.Stepped.Connect((time, dt) => {
 			for (const dependency of physics) {
 				coroutine.wrap(() => dependency.onPhysics(dt, time))();
 			}
@@ -302,6 +336,28 @@ export namespace Flamework {
 	 * @param context A scope for the hash
 	 */
 	export declare function hash(str: string, context?: string): string;
+
+	/**
+	 * Utility for use in test suites, not recommended for anything else.
+	 */
+	export namespace Testing {
+		export function patchDependency<T>(patchedClass: Constructor<unknown>, id?: string) {
+			if (id === undefined) throw `Patching failed, no ID`;
+			if (resolvedDependencies.has(id)) throw `${id} has already been resolved, continuing is unsafe`;
+
+			const idCtor = idToTarget.get(id);
+			if (idCtor === undefined) throw `Dependency ${id} was not found and cannot be patched.`;
+
+			const classMetadata = metadata.get(idCtor);
+			if (!classMetadata) throw `Dependency ${id} has no existing metadata.`;
+
+			classMetadata.isPatched = true;
+			metadata.delete(idCtor);
+			metadata.set(patchedClass, classMetadata);
+			targetToId.set(patchedClass, id);
+			idToTarget.set(id, patchedClass);
+		}
+	}
 }
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any

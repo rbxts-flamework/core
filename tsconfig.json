@@ -23,7 +23,7 @@
 		"declaration": true,
 		"plugins": [
 			{
-				"transform": "../Transformer",
+				"transform": "../TransformerRewrite",
 				"$rbxpackmode$": true,
 				"hashPrefix": "$",
 			}
