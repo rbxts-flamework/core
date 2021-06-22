@@ -26,7 +26,7 @@ It requires typescript and offers many useful features and abstractions.
 4. Delete the `out` directory.
 
 5. Compile!
-	- Note: You must use the master branch (rbxtsc-dev) of roblox-ts until the next release.
+	- Note: You must use the beta branch of roblox-ts. `npm i roblox-ts@next` will install a local version, or `npm i -g roblox-ts@next` will install it globally.
 
 
 # Usage
