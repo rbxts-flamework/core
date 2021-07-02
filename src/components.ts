@@ -10,10 +10,6 @@ interface ComponentInfo {
 	metadata: Flamework.Metadata;
 }
 
-export interface OnAttributeChanged {
-	onAttributeChanged(key: string): void;
-}
-
 export class BaseComponent<A = {}> {
 	/**
 	 * A maid that will be destroyed when the component is.
@@ -34,6 +30,21 @@ export class BaseComponent<A = {}> {
 	setInstance(instance: Instance) {
 		this.instance = instance;
 		this.attributes = instance.GetAttributes() as never;
+	}
+
+	/** @hidden */
+	public _attributeChangeHandlers = new Map<string, ((...args: unknown[]) => void)[]>();
+
+	/**
+	 * Connect a callback to the change of a specific attribute.
+	 * @param name The name of the attribute
+	 * @param cb The callback
+	 */
+	onAttributeChanged<K extends keyof A>(name: K, cb: (newValue: A[K], oldValue: A[K]) => void) {
+		let list = this._attributeChangeHandlers.get(name as string);
+		if (!list) this._attributeChangeHandlers.set(name as string, (list = []));
+
+		list.push(cb as never);
 	}
 
 	/**
@@ -190,13 +201,18 @@ export class Components implements OnInit, OnStart, OnTick, OnPhysics, OnRender 
 				if (typeIs(attribute, "string")) {
 					component.maid.GiveTask(
 						instance.GetAttributeChangedSignal(attribute).Connect(() => {
+							const handlers = component._attributeChangeHandlers.get(attribute);
 							const value = instance.GetAttribute(attribute);
+							const attributes = component.attributes as Map<string, unknown>;
 							if (guard(value)) {
-								(component.attributes as Map<string, unknown>).set(attribute, value);
-
-								if (Flamework.implements<OnAttributeChanged>(component)) {
-									component.onAttributeChanged(attribute);
+								if (handlers) {
+									for (const handler of handlers) {
+										this.safeCall(`Failed to call onAttributeChanged for ${attribute}`, () =>
+											handler(value, attributes.get(attribute)),
+										);
+									}
 								}
+								attributes.set(attribute, value);
 							}
 						}),
 					);
