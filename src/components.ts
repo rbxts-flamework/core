@@ -10,6 +10,10 @@ interface ComponentInfo {
 	metadata: Flamework.Metadata;
 }
 
+export interface OnAttributeChanged {
+	onAttributeChanged(key: string): void;
+}
+
 export class BaseComponent<A = {}> {
 	/**
 	 * A maid that will be destroyed when the component is.
@@ -189,6 +193,10 @@ export class Components implements OnInit, OnStart, OnTick, OnPhysics, OnRender 
 							const value = instance.GetAttribute(attribute);
 							if (guard(value)) {
 								(component.attributes as Map<string, unknown>).set(attribute, value);
+
+								if (Flamework.implements<OnAttributeChanged>(component)) {
+									component.onAttributeChanged(attribute);
+								}
 							}
 						}),
 					);

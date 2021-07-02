@@ -13,4 +13,4 @@ export {
 } from "./flamework";
 
 export { Networking } from "./networking";
-export { BaseComponent, Components } from "./components";
+export { BaseComponent, Components, OnAttributeChanged } from "./components";
