@@ -4,6 +4,17 @@ import { t } from "@rbxts/t";
 import { Service, Controller, OnInit, Flamework, OnStart, OnTick, OnPhysics, OnRender } from "./flamework";
 import { Constructor } from "./types";
 
+// xpcall types are broken, so this is a workaround
+const xpcall2 = xpcall as <T extends Array<unknown>, U, V>(
+	func: (...args: T) => U,
+	errHandler: (err: unknown) => V,
+	...args: T
+) => LuaTuple<
+	U extends LuaTuple<[...infer W]>
+		? [true, ...W] | [false, V extends LuaTuple<[infer A, ...unknown[]]> ? A : V]
+		: [true, U] | [false, V extends LuaTuple<[infer A, ...unknown[]]> ? A : V]
+>;
+
 interface ComponentInfo {
 	ctor: Constructor<BaseComponent>;
 	config: Flamework.ConfigType<"Component">;
@@ -164,11 +175,17 @@ export class Components implements OnInit, OnStart, OnTick, OnPhysics, OnRender 
 
 	private safeCall(message: string, func: () => void) {
 		coroutine.wrap(() => {
-			const result = opcall(func);
-
-			if (!result.success) {
-				warn(message);
-			}
+			xpcall2(func, (err) => {
+				if (typeIs(err, "string")) {
+					const stack = debug.traceback(err, 2);
+					warn(message);
+					warn(stack);
+				} else {
+					warn(message);
+					warn(err);
+					warn(debug.traceback(undefined, 2));
+				}
+			});
 		})();
 	}
 
