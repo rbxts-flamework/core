@@ -21,7 +21,7 @@ interface ComponentInfo {
 	metadata: Flamework.Metadata;
 }
 
-export class BaseComponent<A = {}> {
+export class BaseComponent<A = {}, I extends Instance = Instance> {
 	/**
 	 * A maid that will be destroyed when the component is.
 	 */
@@ -36,9 +36,9 @@ export class BaseComponent<A = {}> {
 	 * The instance this component is attached to.
 	 * This should only be called in a component lifecycle event.
 	 */
-	public instance!: Instance;
+	public instance!: I;
 
-	setInstance(instance: Instance) {
+	setInstance(instance: I) {
 		this.instance = instance;
 		this.attributes = instance.GetAttributes() as never;
 	}
@@ -160,6 +160,19 @@ export class Components implements OnInit, OnStart, OnTick, OnPhysics, OnRender 
 		return attributes;
 	}
 
+	private getInstanceGuard(ctor: Constructor): t.check<unknown> | undefined {
+		const metadata = this.components.get(ctor);
+		if (metadata) {
+			if (metadata.config.instanceGuard !== undefined) {
+				return metadata.config.instanceGuard;
+			}
+			const parentCtor = getmetatable(ctor) as { __index?: Constructor };
+			if (parentCtor.__index !== undefined) {
+				return this.getInstanceGuard(parentCtor.__index);
+			}
+		}
+	}
+
 	private validateAttributes(instance: Instance, guards: Map<string, t.check<unknown>>) {
 		const attributes = instance.GetAttributes() as { [key: string]: unknown };
 
@@ -271,6 +284,10 @@ export class Components implements OnInit, OnStart, OnTick, OnPhysics, OnRender 
 				this.validateAttributes(instance, attributeGuards),
 				`${instance.GetFullName()} has invalid attributes for ${componentInfo.metadata.identifier}`,
 			);
+
+		const instanceGuard = this.getInstanceGuard(component);
+		if (instanceGuard !== undefined)
+			assert(instanceGuard(instance), `${instance.GetFullName()} did not pass instance guard check`);
 
 		let activeComponents = this.activeComponents.get(instance);
 		if (!activeComponents) this.activeComponents.set(instance, (activeComponents = new Map()));
