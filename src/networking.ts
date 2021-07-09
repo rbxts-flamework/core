@@ -63,10 +63,7 @@ export namespace Networking {
 			cb: (...args: K) => void,
 			additionalGuards?: { [k in keyof K]?: t.check<K[k]> },
 		): RBXScriptConnection;
-		predict<T extends keyof R>(
-			event: T,
-			...args: R[T] extends (...args: infer P) => void ? P : never
-		): RBXScriptConnection;
+		predict<T extends keyof R>(event: T, ...args: R[T] extends (...args: infer P) => void ? P : never): void;
 	} & M;
 	export type ClientMethod<T extends Array<unknown>> = (...args: T) => void;
 
@@ -257,6 +254,10 @@ export namespace Networking {
 					}
 					return cb(...(args as never));
 				});
+			};
+
+			globalEvents.client.predict = function (this: unknown, event, ...args) {
+				fireConnections(event as string, Players.LocalPlayer, ...args);
 			};
 
 			for (const [name] of pairs(serverGuards)) {
