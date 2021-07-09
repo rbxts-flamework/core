@@ -1,9 +1,14 @@
+import Object from "@rbxts/object-utils";
+
 /**
  * Reflection/metadata API
  */
 export namespace Reflect {
 	// object -> property -> key -> value
-	const metadata = new WeakMap<object, Map<string | typeof NO_PROP_MARKER, Map<string, unknown>>>();
+	export const metadata = new WeakMap<object, Map<string | typeof NO_PROP_MARKER, Map<string, unknown>>>();
+	export const idToObj = new Map<string, object>();
+	export const objToId = new Map<object, string>();
+
 	const NO_PROP_MARKER = {} as { _nominal_Marker: never };
 
 	function getObjMetadata(obj: object, prop: string | undefined, create: true): Map<string, unknown>;
@@ -34,6 +39,16 @@ export namespace Reflect {
 	 * Apply metadata onto this object.
 	 */
 	export function defineMetadata(obj: object, key: string, value: unknown, property?: string) {
+		// 'identifier' is a special, unique ID across all metadata classes.
+		if (key === "identifier") {
+			assert(typeIs(value, "string"), "identifier must be a string.");
+			assert(!objToId.has(obj), "obj is already registered.");
+			assert(!idToObj.has(value as never), "id is already registered.");
+
+			objToId.set(obj, value);
+			idToObj.set(value, obj);
+		}
+
 		const metadata = getObjMetadata(obj, property, true);
 		metadata.set(key, value);
 	}

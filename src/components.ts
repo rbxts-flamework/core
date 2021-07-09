@@ -1,7 +1,8 @@
 import Maid from "@rbxts/maid";
 import { CollectionService } from "@rbxts/services";
 import { t } from "@rbxts/t";
-import { Service, Controller, OnInit, Flamework, OnStart, OnTick, OnPhysics, OnRender } from "./flamework";
+import { Service, Controller, OnInit, Flamework, OnStart, OnTick, OnPhysics, OnRender, Component } from "./flamework";
+import { Reflect } from "./reflect";
 import { Constructor } from "./types";
 
 // xpcall types are broken, so this is a workaround
@@ -17,8 +18,8 @@ const xpcall2 = xpcall as <T extends Array<unknown>, U, V>(
 
 interface ComponentInfo {
 	ctor: Constructor<BaseComponent>;
+	identifier: string;
 	config: Flamework.ConfigType<"Component">;
-	metadata: Flamework.Metadata;
 }
 
 export class BaseComponent<A = {}, I extends Instance = Instance> {
@@ -86,16 +87,17 @@ export class Components implements OnInit, OnStart, OnTick, OnPhysics, OnRender 
 
 	onInit() {
 		const components = new Map<Constructor, ComponentInfo>();
-		for (const [ctor, metadata] of Flamework.metadata) {
-			const component = metadata.decorators
-				.map((x) => x.config)
-				.find((x): x is Flamework.ConfigType<"Component"> => x.type === "Component");
+		for (const [ctor, identifier] of Reflect.objToId) {
+			const component = Reflect.getOwnMetadata<Flamework.ConfigType<"Component">>(
+				ctor,
+				`flamework:decorators.${Flamework.id<typeof Component>()}`,
+			);
 
 			if (component) {
-				components.set(ctor, {
-					metadata,
+				components.set(ctor as Constructor, {
 					ctor: ctor as Constructor<BaseComponent>,
 					config: component,
+					identifier,
 				});
 			}
 		}
@@ -103,7 +105,7 @@ export class Components implements OnInit, OnStart, OnTick, OnPhysics, OnRender 
 	}
 
 	onStart() {
-		for (const [, { config, ctor, metadata }] of this.components) {
+		for (const [, { config, ctor }] of this.components) {
 			if (config.tag !== undefined) {
 				CollectionService.GetInstanceAddedSignal(config.tag).Connect((instance) => {
 					this.addComponent(instance, ctor);
@@ -253,7 +255,7 @@ export class Components implements OnInit, OnStart, OnTick, OnPhysics, OnRender 
 
 	private getComponentFromSpecifier<T extends Constructor>(componentSpecifier?: T | string) {
 		return typeIs(componentSpecifier, "string")
-			? (Flamework.idToTarget.get(componentSpecifier) as T)
+			? (Reflect.idToObj.get(componentSpecifier) as T)
 			: componentSpecifier;
 	}
 
@@ -282,7 +284,7 @@ export class Components implements OnInit, OnStart, OnTick, OnPhysics, OnRender 
 		if (attributeGuards !== undefined)
 			assert(
 				this.validateAttributes(instance, attributeGuards),
-				`${instance.GetFullName()} has invalid attributes for ${componentInfo.metadata.identifier}`,
+				`${instance.GetFullName()} has invalid attributes for ${componentInfo.identifier}`,
 			);
 
 		const instanceGuard = this.getInstanceGuard(component);
