@@ -325,7 +325,7 @@ export namespace Flamework {
 
 			Reflect.defineMetadata(idCtor, "flamework:isPatched", true);
 			Reflect.metadata.delete(idCtor);
-			Reflect.metadata.set(patchedClass, Object.deepCopy(objMetadata));
+			Reflect.metadata.set(patchedClass, objMetadata);
 
 			Reflect.objToId.set(patchedClass, id);
 			Reflect.idToObj.set(id, patchedClass);
