@@ -44,6 +44,13 @@ export class BaseComponent<A = {}, I extends Instance = Instance> {
 		this.attributes = instance.GetAttributes() as never;
 	}
 
+	setAttribute<T extends keyof A>(key: T, value: A[T], postfix?: boolean) {
+		const previousValue = this.attributes[key];
+		this.attributes[key] = value;
+		this.instance.SetAttribute(key as string, value);
+		return postfix ? previousValue : value;
+	}
+
 	/** @hidden */
 	public _attributeChangeHandlers = new Map<string, ((...args: unknown[]) => void)[]>();
 
