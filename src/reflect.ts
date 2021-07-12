@@ -30,7 +30,7 @@ export namespace Reflect {
 
 	function getParentConstructor(obj: object) {
 		const metatable = getmetatable(obj) as { __index?: object };
-		if (metatable) {
+		if (metatable && typeIs(metatable, "table")) {
 			return rawget(metatable, "__index") as object;
 		}
 	}
