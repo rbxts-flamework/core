@@ -1,23 +1,11 @@
+import Object from "@rbxts/object-utils";
 import { Players, RunService } from "@rbxts/services";
 import { t } from "@rbxts/t";
 import { Networking } from "./networking";
+import { Reflect } from "./reflect";
 import { Constructor } from "./types";
 
 export namespace Flamework {
-	export interface Decorator {
-		identifier: string;
-		config: Config;
-	}
-
-	export interface Metadata {
-		identifier: string;
-		isExternal: boolean;
-		isPatched?: boolean;
-		implements?: string[];
-		dependencies?: string[];
-		decorators: Decorator[];
-	}
-
 	export type Config =
 		| (ComponentConfig & { type: "Component" })
 		| (ServiceConfig & { type: "Service" })
@@ -58,18 +46,6 @@ export namespace Flamework {
 	};
 	export let isInitialized = false;
 
-	export const metadata = new Map<Constructor, Metadata>();
-	export const targetToId = new Map<Constructor, string>();
-	export const idToTarget = new Map<string, Constructor>();
-
-	/** @hidden */
-	export function registerMetadata(target: defined, data: Metadata) {
-		const ctor = target as Constructor;
-		metadata.set(ctor, data);
-		targetToId.set(ctor, data.identifier);
-		idToTarget.set(data.identifier, ctor);
-	}
-
 	const resolvedDependencies = new Map<string, unknown>();
 	const loadingList = new Array<Constructor>();
 
@@ -78,12 +54,11 @@ export namespace Flamework {
 		if (loadingList.includes(ctor)) throw `Circular dependency detected ${loadingList.join(" <=> ")} <=> ${ctor}`;
 		loadingList.push(ctor);
 
-		const dependencyMetadata = metadata.get(ctor);
-		if (!dependencyMetadata) throw `Dependency ${id} metadata is missing.`;
+		const dependencies = Reflect.getMetadata<string[]>(ctor, "flamework:dependencies");
 
 		const constructorDependencies: never[] = [];
-		if (dependencyMetadata.dependencies) {
-			for (const [index, dependencyId] of pairs(dependencyMetadata.dependencies)) {
+		if (dependencies) {
+			for (const [index, dependencyId] of pairs(dependencies)) {
 				const dependency = resolveDependency(dependencyId);
 				constructorDependencies[index - 1] = dependency as never;
 			}
@@ -100,8 +75,10 @@ export namespace Flamework {
 		const resolvedDependency = resolvedDependencies.get(id);
 		if (resolvedDependency !== undefined) return resolvedDependency;
 
-		const ctor = idToTarget.get(id);
+		const ctor = Reflect.idToObj.get(id);
 		if (ctor === undefined) throw `Dependency ${id} could not be found.`;
+
+		assert(isConstructor(ctor));
 
 		const dependency = createDependency(ctor);
 		resolvedDependencies.set(id, dependency);
@@ -151,32 +128,25 @@ export namespace Flamework {
 
 	/** @hidden */
 	export function _implements<T>(object: unknown, id: string): object is T {
-		let objectMetadata: Metadata | undefined;
-		while (objectMetadata === undefined && object !== undefined) {
-			objectMetadata = metadata.get(object as Constructor);
-			if (objectMetadata) break;
-
-			const mt = getmetatable(object as object) as { __index?: Constructor };
-			if (mt) {
-				object = mt.__index;
-			} else {
-				object = undefined;
-			}
-		}
-
-		if (!objectMetadata) return false;
-		if (!objectMetadata.implements) return false;
-
-		return objectMetadata.implements.includes(id);
+		return Reflect.getMetadatas<string[]>(object as object, "flamework:implements").some((impl) =>
+			impl.includes(id),
+		);
 	}
 
-	function getDecorator<T extends Exclude<keyof ConfigTypes, "Arbitrary">>(ctor: Constructor, configType: T) {
-		const objectMetadata = metadata.get(ctor);
-		if (!objectMetadata) return undefined;
+	function isConstructor(obj: object): obj is Constructor {
+		return "new" in obj && "constructor" in obj;
+	}
 
-		for (const decorator of objectMetadata.decorators) {
-			if (decorator.config.type === configType) {
-				return decorator as { identifier: string; config: ConfigTypes[T] & { type: T } };
+	function getDecorator<T extends Exclude<keyof ConfigTypes, "Arbitrary">>(ctor: object, configType: T) {
+		const decorators = Reflect.getMetadatas<string[]>(ctor, "flamework:decorators");
+		if (!decorators) return undefined;
+
+		for (const decoratorIds of decorators) {
+			for (const decoratorId of decoratorIds) {
+				const config = Reflect.getMetadata<Config>(ctor, `flamework:decorators.${decoratorId}`);
+				if (config?.type === configType) {
+					return config as ConfigTypes[T] & { type: T };
+				}
 			}
 		}
 	}
@@ -221,51 +191,52 @@ export namespace Flamework {
 			}
 		}
 
-		for (const [ctor, objectMetadata] of metadata) {
+		for (const [ctor, identifier] of Reflect.objToId) {
+			if (!isConstructor(ctor)) continue;
+
+			const isPatched = Reflect.getOwnMetadata<boolean>(ctor, "flamework:isPatched");
 			if (flameworkConfig.loadOverride && !flameworkConfig.loadOverride.includes(ctor)) {
-				if (!objectMetadata.isPatched) continue;
+				if (!isPatched) continue;
 			}
-			resolveDependency(objectMetadata.identifier);
+			resolveDependency(identifier);
 		}
 
-		const dependencies = new Array<[unknown, Metadata, LoadableConfigs]>();
+		const dependencies = new Array<[unknown, LoadableConfigs]>();
 		const decoratorType = RunService.IsServer() ? "Service" : "Controller";
 
 		for (const [id] of resolvedDependencies) {
-			const ctor = idToTarget.get(id);
+			const ctor = Reflect.idToObj.get(id);
 			if (ctor === undefined) throw `Could not find constructor for ${id}`;
-
-			const objectMetadata = metadata.get(ctor);
-			if (objectMetadata === undefined) throw `Could not find metadata for ${id}`;
 
 			const decorator = getDecorator(ctor, decoratorType);
 			if (!decorator) continue;
 
-			if (objectMetadata.isExternal && !externalClasses.has(ctor)) continue;
+			const isExternal = Reflect.getOwnMetadata<boolean>(ctor, "flamework:isExternal");
+			if (isExternal && !externalClasses.has(ctor as Constructor)) continue;
 
-			const dependency = resolveDependency(objectMetadata.identifier);
-			dependencies.push([dependency, objectMetadata, decorator.config]);
+			const dependency = resolveDependency(id);
+			dependencies.push([dependency, decorator]);
 		}
 
-		const start = new Array<[OnStart, Metadata, LoadableConfigs]>();
-		const init = new Array<[OnInit, Metadata, LoadableConfigs]>();
+		const start = new Array<OnStart>();
+		const init = new Array<OnInit>();
 
 		const tick = new Array<OnTick>();
 		const render = new Array<OnRender>();
 		const physics = new Array<OnPhysics>();
 
-		dependencies.sort(([, , a], [, , b]) => (a.loadOrder ?? 1) < (b.loadOrder ?? 1));
+		dependencies.sort(([, a], [, b]) => (a.loadOrder ?? 1) < (b.loadOrder ?? 1));
 
-		for (const [dependency, objectMetadata, config] of dependencies) {
-			if (Flamework.implements<OnInit>(dependency)) init.push([dependency, objectMetadata, config]);
-			if (Flamework.implements<OnStart>(dependency)) start.push([dependency, objectMetadata, config]);
+		for (const [dependency] of dependencies) {
+			if (Flamework.implements<OnInit>(dependency)) init.push(dependency);
+			if (Flamework.implements<OnStart>(dependency)) start.push(dependency);
 
 			if (Flamework.implements<OnTick>(dependency)) tick.push(dependency);
 			if (Flamework.implements<OnPhysics>(dependency)) physics.push(dependency);
 			if (Flamework.implements<OnRender>(dependency)) render.push(dependency);
 		}
 
-		for (const [dependency] of init) {
+		for (const dependency of init) {
 			const initResult = dependency.onInit();
 			if (Promise.is(initResult)) {
 				initResult.await();
@@ -294,7 +265,7 @@ export namespace Flamework {
 			});
 		}
 
-		for (const [dependency] of start) {
+		for (const dependency of start) {
 			fastSpawn(() => dependency.onStart());
 		}
 
@@ -346,17 +317,18 @@ export namespace Flamework {
 			if (id === undefined) throw `Patching failed, no ID`;
 			if (resolvedDependencies.has(id)) throw `${id} has already been resolved, continuing is unsafe`;
 
-			const idCtor = idToTarget.get(id);
+			const idCtor = Reflect.idToObj.get(id) as Constructor;
 			if (idCtor === undefined) throw `Dependency ${id} was not found and cannot be patched.`;
 
-			const classMetadata = metadata.get(idCtor);
-			if (!classMetadata) throw `Dependency ${id} has no existing metadata.`;
+			const objMetadata = Reflect.metadata.get(idCtor);
+			if (!objMetadata) throw `Dependency ${id} has no existing metadata.`;
 
-			classMetadata.isPatched = true;
-			metadata.delete(idCtor);
-			metadata.set(patchedClass, classMetadata);
-			targetToId.set(patchedClass, id);
-			idToTarget.set(id, patchedClass);
+			Reflect.defineMetadata(idCtor, "flamework:isPatched", true);
+			Reflect.metadata.delete(idCtor);
+			Reflect.metadata.set(patchedClass, objMetadata);
+
+			Reflect.objToId.set(patchedClass, id);
+			Reflect.idToObj.set(id, patchedClass);
 		}
 	}
 }
