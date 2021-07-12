@@ -305,7 +305,7 @@ export class Components implements OnInit, OnStart, OnTick, OnPhysics, OnRender 
 	}
 
 	removeComponent<T>(instance: Instance): void;
-	removeComponent(instance: Instance, componentSpecifier: Constructor<BaseComponent>): void;
+	removeComponent<T>(instance: Instance, componentSpecifier: Constructor<BaseComponent>): void;
 	removeComponent(instance: Instance, componentSpecifier?: Constructor<BaseComponent> | string) {
 		const component = this.getComponentFromSpecifier(componentSpecifier);
 		assert(component, "Could not find component from specifier");
