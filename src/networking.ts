@@ -90,15 +90,25 @@ export namespace Networking {
 
 	declare const xx: StaticGuards<{ ay: (arg: string) => void }>;
 
-	function populateEvents(names: string[], map: Map<string, RemoteEvent>) {
+	function populateEvents(names: string[], eventsName: string, map: Map<string, RemoteEvent>) {
+		let remotes = RunService.IsServer()
+			? ReplicatedStorage.FindFirstChild(eventsName)
+			: ReplicatedStorage.WaitForChild(eventsName);
+
+		if (!remotes) {
+			remotes = new Instance("Folder");
+			remotes.Name = eventsName;
+			remotes.Parent = ReplicatedStorage;
+		}
+
 		for (const name of names) {
 			if (RunService.IsClient()) {
-				const instance = ReplicatedStorage.WaitForChild(name);
+				const instance = remotes.WaitForChild(name);
 				if (instance.IsA("RemoteEvent")) {
 					map.set(name, instance);
 				}
 			} else {
-				const instance = ReplicatedStorage.FindFirstChild(name);
+				const instance = remotes.FindFirstChild(name);
 
 				if (instance) {
 					if (!instance.IsA("RemoteEvent")) throw `Found ${name} but it is not a remote.`;
@@ -106,7 +116,7 @@ export namespace Networking {
 				} else {
 					const remote = new Instance("RemoteEvent");
 					remote.Name = name;
-					remote.Parent = ReplicatedStorage;
+					remote.Parent = remotes;
 					map.set(name, remote);
 				}
 			}
@@ -114,6 +124,7 @@ export namespace Networking {
 	}
 
 	export function createEvent<S, C>(
+		name: string,
 		_serverGuards: StaticGuards<S>,
 		_clientGuards: StaticGuards<C>,
 		serverMiddleware?: EventMiddleware<S>,
@@ -125,8 +136,8 @@ export namespace Networking {
 		const globalEvents = {} as EventType<S, C>;
 		const remotes = new Map<string, RemoteEvent>();
 
-		populateEvents(Object.keys(serverGuards) as string[], remotes);
-		populateEvents(Object.keys(clientGuards) as string[], remotes);
+		populateEvents(Object.keys(serverGuards) as string[], `events-${name}`, remotes);
+		populateEvents(Object.keys(clientGuards) as string[], `events-${name}`, remotes);
 
 		const middleware = RunService.IsServer() ? serverMiddleware : clientMiddleware;
 		const connections = new Map<string, BindableEvent>();
