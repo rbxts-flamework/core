@@ -13,7 +13,7 @@
 		"resolveJsonModule": true,
 		"strict": true,
 		"target": "ESNext",
-		"typeRoots": ["node_modules/@rbxts"],
+		"typeRoots": ["node_modules/@rbxts", "node_modules/@flamework"],
 
 		// configurable
 		"rootDir": "src",
@@ -23,7 +23,7 @@
 		"declaration": true,
 		"plugins": [
 			{
-				"transform": "../TransformerRewrite",
+				"transform": "../flamework-transformer",
 				"$rbxpackmode$": true,
 				"hashPrefix": "$",
 			}
