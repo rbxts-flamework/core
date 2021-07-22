@@ -23,6 +23,7 @@ export namespace Flamework {
 	export interface ComponentConfig {
 		tag?: string;
 		attributes?: { [key: string]: t.check<unknown> };
+		defaults?: { [key: string]: unknown };
 		instanceGuard?: t.check<unknown>;
 		refreshAttributes?: boolean;
 	}
