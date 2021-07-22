@@ -1,5 +1,5 @@
 {
-	"name": "flamework",
+	"name": "core",
 	"globIgnorePaths": [
 		"**/package.json",
 		"**/tsconfig.json"

@@ -1,7 +1,6 @@
 import Object from "@rbxts/object-utils";
 import { Players, RunService } from "@rbxts/services";
 import { t } from "@rbxts/t";
-import { Networking } from "./networking";
 import { Reflect } from "./reflect";
 import { Constructor } from "./types";
 
@@ -293,14 +292,6 @@ export namespace Flamework {
 	export declare function createGuard<T>(): t.check<T>;
 
 	/**
-	 * Creates a type guard from any arbitrary type.
-	 */
-	export declare function createEvent<S, C>(
-		serverMiddleware?: Networking.EventMiddleware<S>,
-		clientMiddleware?: Networking.EventMiddleware<C>,
-	): Networking.EventType<S, C>;
-
-	/**
 	 * Hash a function using the method used internally by Flamework.
 	 * If a context is provided, then Flamework will create a new hash
 	 * if the specified string does not have one in that context.
@@ -339,11 +330,6 @@ type ClassDecorator = (ctor: any) => any;
 export declare function Dependency<T>(): T;
 export declare function Dependency<T>(ctor: Constructor<T>): T;
 export declare function Dependency<T>(ctor?: Constructor<T>): T;
-
-/**
- * Register a class as a Component.
- */
-export declare function Component(opts?: Flamework.ComponentConfig): ClassDecorator;
 
 /**
  * Register a class as a Service.
