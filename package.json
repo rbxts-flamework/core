@@ -1,6 +1,6 @@
 {
   "name": "@flamework/core",
-  "version": "0.0.11",
+  "version": "1.0.0-beta.0",
   "description": "",
   "main": "out/init.lua",
   "scripts": {
