@@ -5,6 +5,9 @@
 		"**/tsconfig.json"
 	],
 	"tree": {
-		"$path": "out"
+		"$className": "Folder",
+		"out": {
+			"$path": "out"
+		}
 	}
 }
