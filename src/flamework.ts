@@ -151,13 +151,6 @@ export namespace Flamework {
 		}
 	}
 
-	function fastSpawn(func: () => unknown) {
-		const bindable = new Instance("BindableEvent");
-		bindable.Event.Connect(func);
-		bindable.Fire();
-		bindable.Destroy();
-	}
-
 	const externalClasses = new Set<Constructor>();
 
 	/**
@@ -247,26 +240,26 @@ export namespace Flamework {
 
 		RunService.Heartbeat.Connect((dt) => {
 			for (const dependency of tick) {
-				coroutine.wrap(() => dependency.onTick(dt))();
+				task.spawn(() => dependency.onTick(dt));
 			}
 		});
 
 		RunService.Stepped.Connect((time, dt) => {
 			for (const dependency of physics) {
-				coroutine.wrap(() => dependency.onPhysics(dt, time))();
+				task.spawn(() => dependency.onPhysics(dt, time));
 			}
 		});
 
 		if (RunService.IsClient()) {
 			RunService.RenderStepped.Connect((dt) => {
 				for (const dependency of render) {
-					coroutine.wrap(() => dependency.onRender(dt))();
+					task.spawn(() => dependency.onRender(dt));
 				}
 			});
 		}
 
 		for (const dependency of start) {
-			fastSpawn(() => dependency.onStart());
+			task.spawn(() => dependency.onStart());
 		}
 
 		return dependencies;
