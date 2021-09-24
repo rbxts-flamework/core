@@ -68,6 +68,8 @@ export namespace Modding {
 	}
 
 	export function addLifecycleEvent(id: string) {
+		if (lifecycleListeners.has(id)) return;
+
 		const set = new Set<object>();
 		lifecycleListeners.set(id, set);
 
@@ -98,8 +100,9 @@ export namespace Modding {
 		});
 	}
 
-	export function getLifecycleListeners(id: string): ReadonlySet<object> {
-		return lifecycleListeners.get(id) || new Set();
+	export function getLifecycleListeners<T extends object>(id: string): ReadonlySet<T> {
+		addLifecycleEvent(id);
+		return lifecycleListeners.get(id)! as Set<T>;
 	}
 
 	export function getLifecycleListenerAdded(id: string, callback: (obj: object) => void) {
@@ -117,6 +120,8 @@ export namespace Modding {
 	}
 
 	export function addDecorator(id: string) {
+		if (decoratorListeners.has(id)) return;
+
 		const set = new Set<object>();
 		decoratorListeners.set(id, set);
 
@@ -160,7 +165,8 @@ export namespace Modding {
 	}
 
 	export function getDecoratorListeners(id: string): ReadonlySet<object> {
-		return decoratorListeners.get(id) || new Set();
+		addDecorator(id);
+		return decoratorListeners.get(id)!;
 	}
 
 	export function getDecoratorListenerAdded(id: string, callback: (obj: object) => void) {
@@ -179,9 +185,9 @@ export namespace Modding {
 
 	export function getDecoratorConstructors(id: string) {
 		const constructors = new Array<[string, Constructor<unknown>]>();
-		for (const [id, obj] of Reflect.idToObj) {
+		for (const [objId, obj] of Reflect.idToObj) {
 			if (isConstructor(obj) && hasDecorator(obj, id)) {
-				constructors.push([id, obj]);
+				constructors.push([objId, obj]);
 			}
 		}
 		return constructors;

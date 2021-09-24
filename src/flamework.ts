@@ -139,19 +139,15 @@ export namespace Flamework {
 		const start = new Array<OnStart>();
 		const init = new Array<OnInit>();
 
-		const tick = new Array<OnTick>();
-		const render = new Array<OnRender>();
-		const physics = new Array<OnPhysics>();
+		const tick = Modding.getLifecycleListeners<OnTick>(Flamework.id<OnTick>());
+		const render = Modding.getLifecycleListeners<OnRender>(Flamework.id<OnRender>());
+		const physics = Modding.getLifecycleListeners<OnPhysics>(Flamework.id<OnPhysics>());
 
 		dependencies.sort(([, a], [, b]) => (a.loadOrder ?? 1) < (b.loadOrder ?? 1));
 
 		for (const [dependency] of dependencies) {
 			if (Flamework.implements<OnInit>(dependency)) init.push(dependency);
 			if (Flamework.implements<OnStart>(dependency)) start.push(dependency);
-
-			if (Flamework.implements<OnTick>(dependency)) tick.push(dependency);
-			if (Flamework.implements<OnPhysics>(dependency)) physics.push(dependency);
-			if (Flamework.implements<OnRender>(dependency)) render.push(dependency);
 		}
 
 		for (const dependency of init) {
@@ -245,9 +241,6 @@ export namespace Flamework {
 	}
 }
 
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-type ClassDecorator = (ctor: any) => any;
-
 export declare function Dependency<T>(): T;
 export declare function Dependency<T>(ctor: Constructor<T>): T;
 export declare function Dependency<T>(ctor?: Constructor<T>): T;
@@ -257,14 +250,14 @@ export declare function Dependency<T>(ctor?: Constructor<T>): T;
  *
  * @server
  */
-export declare function Service(opts?: ServiceConfig): ClassDecorator;
+export declare function Service(opts?: ServiceConfig): Modding.ClassDecorator;
 
 /**
  * Register a class as a Controller.
  *
  * @client
  */
-export declare function Controller(opts?: ControllerConfig): ClassDecorator;
+export declare function Controller(opts?: ControllerConfig): Modding.ClassDecorator;
 
 /**
  * Marks this class as an external class.
@@ -274,7 +267,7 @@ export declare function Controller(opts?: ControllerConfig): ClassDecorator;
  * inside of a package will make the class load as long as
  * it has been loaded.
  */
-export declare function External(): ClassDecorator;
+export declare function External(): Modding.ClassDecorator;
 
 /**
  * Hook into the OnInit lifecycle event.
