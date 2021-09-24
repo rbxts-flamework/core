@@ -1,0 +1,196 @@
+warning: CRLF will be replaced by LF in src/index.ts.
+The file will have its original line endings in your working directory
+warning: CRLF will be replaced by LF in src/reflect.ts.
+The file will have its original line endings in your working directory
+warning: CRLF will be replaced by LF in src/types.d.ts.
+The file will have its original line endings in your working directory
+[1mdiff --git a/src/flamework.ts b/src/flamework.ts[m
+[1mindex 3aa774c..17adea7 100644[m
+[1m--- a/src/flamework.ts[m
+[1m+++ b/src/flamework.ts[m
+[36m@@ -1,46 +1,12 @@[m
+ import Object from "@rbxts/object-utils";[m
+ import { Players, RunService } from "@rbxts/services";[m
+ import { t } from "@rbxts/t";[m
+[32m+[m[32mimport { Modding } from "./modding";[m
+ import { Reflect } from "./reflect";[m
+[31m-import { Constructor } from "./types";[m
+[32m+[m[32mimport { Config, ConfigTypes, Constructor, ControllerConfig, FlameworkConfig, ServiceConfig } from "./types";[m
+[32m+[m[32mimport { isConstructor } from "./util/isConstructor";[m
+ [m
+ export namespace Flamework {[m
+[31m-	export type Config =[m
+[31m-		| (ComponentConfig & { type: "Component" })[m
+[31m-		| (ServiceConfig & { type: "Service" })[m
+[31m-		| (ControllerConfig & { type: "Controller" })[m
+[31m-		| (ArbitraryConfig & { type: "Arbitrary" });[m
+[31m-[m
+[31m-	export type ConfigType<T extends keyof ConfigTypes> = _<Extract<Config, { type: T }>>;[m
+[31m-[m
+[31m-	export interface ConfigTypes {[m
+[31m-		Component: ComponentConfig;[m
+[31m-		Service: ServiceConfig;[m
+[31m-		Controller: ControllerConfig;[m
+[31m-		Arbitrary: ArbitraryConfig;[m
+[31m-	}[m
+[31m-[m
+[31m-	export interface ComponentConfig {[m
+[31m-		tag?: string;[m
+[31m-		attributes?: { [key: string]: t.check<unknown> };[m
+[31m-		defaults?: { [key: string]: unknown };[m
+[31m-		instanceGuard?: t.check<unknown>;[m
+[31m-		refreshAttributes?: boolean;[m
+[31m-	}[m
+[31m-	export interface ServiceConfig {[m
+[31m-		loadOrder?: number;[m
+[31m-	}[m
+[31m-	export interface ControllerConfig {[m
+[31m-		loadOrder?: number;[m
+[31m-	}[m
+[31m-	export interface ArbitraryConfig {[m
+[31m-		arguments: unknown[];[m
+[31m-	}[m
+[31m-	export interface FlameworkConfig {[m
+[31m-		isDefault: boolean;[m
+[31m-		loadOverride?: Constructor<unknown>[];[m
+[31m-	}[m
+[31m-[m
+ 	export const flameworkConfig: FlameworkConfig = {[m
+ 		isDefault: true,[m
+ 	};[m
+[36m@@ -83,60 +49,10 @@[m [mexport namespace Flamework {[m
+ 		const dependency = createDependency(ctor);[m
+ 		resolvedDependencies.set(id, dependency);[m
+ [m
+[32m+[m		[32mModding.addListenerObject(dependency as object);[m
+ 		return dependency;[m
+ 	}[m
+ [m
+[31m-	/** @hidden */[m
+[31m-	export function _addPaths(...args: [...string[]][]) {[m
+[31m-		const preloadPaths = new Array<Instance>();[m
+[31m-		for (const arg of args) {[m
+[31m-			const service = arg.shift();[m
+[31m-			let currentPath: Instance = game.GetService(service as keyof Services);[m
+[31m-			if (service === "StarterPlayer") {[m
+[31m-				if (arg[0] !== "StarterPlayerScripts") throw "StarterPlayer only supports StarterPlayerScripts";[m
+[31m-				if (!RunService.IsClient()) throw "The server cannot load StarterPlayer content";[m
+[31m-				currentPath = Players.LocalPlayer.WaitForChild("PlayerScripts");[m
+[31m-				arg.shift();[m
+[31m-			}[m
+[31m-			for (let i = 0; i < arg.size(); i++) {[m
+[31m-				currentPath = currentPath.WaitForChild(arg[i]);[m
+[31m-			}[m
+[31m-			preloadPaths.push(currentPath);[m
+[31m-		}[m
+[31m-[m
+[31m-		const preload = (moduleScript: ModuleScript) => {[m
+[31m-			const start = os.clock();[m
+[31m-			const result = opcall(require, moduleScript);[m
+[31m-			const endTime = math.floor((os.clock() - start) * 1000);[m
+[31m-			if (!result.success) {[m
+[31m-				throw `${moduleScript.GetFullName()} failed to preload (${endTime}ms): ${result.error}`;[m
+[31m-			}[m
+[31m-			print(`Preloaded ${moduleScript.GetFullName()} (${endTime}ms)`);[m
+[31m-		};[m
+[31m-[m
+[31m-		for (const path of preloadPaths) {[m
+[31m-			if (path.IsA("ModuleScript")) {[m
+[31m-				preload(path);[m
+[31m-			}[m
+[31m-			for (const instance of path.GetDescendants()) {[m
+[31m-				if (instance.IsA("ModuleScript")) {[m
+[31m-					preload(instance);[m
+[31m-				}[m
+[31m-			}[m
+[31m-		}[m
+[31m-	}[m
+[31m-[m
+[31m-	/** @hidden */[m
+[31m-	export function _implements<T>(object: unknown, id: string): object is T {[m
+[31m-		return Reflect.getMetadatas<string[]>(object as object, "flamework:implements").some((impl) =>[m
+[31m-			impl.includes(id),[m
+[31m-		);[m
+[31m-	}[m
+[31m-[m
+[31m-	function isConstructor(obj: object): obj is Constructor {[m
+[31m-		return "new" in obj && "constructor" in obj;[m
+[31m-	}[m
+[31m-[m
+ 	function getDecorator<T extends Exclude<keyof ConfigTypes, "Arbitrary">>(ctor: object, configType: T) {[m
+ 		const decorators = Reflect.getMetadatas<string[]>(ctor, "flamework:decorators");[m
+ 		if (!decorators) return undefined;[m
+[36m@@ -330,14 +246,14 @@[m [mexport declare function Dependency<T>(ctor?: Constructor<T>): T;[m
+  *[m
+  * @server[m
+  */[m
+[31m-export declare function Service(opts?: Flamework.ServiceConfig): ClassDecorator;[m
+[32m+[m[32mexport declare function Service(opts?: ServiceConfig): ClassDecorator;[m
+ [m
+ /**[m
+  * Register a class as a Controller.[m
+  *[m
+  * @client[m
+  */[m
+[31m-export declare function Controller(opts?: Flamework.ControllerConfig): ClassDecorator;[m
+[32m+[m[32mexport declare function Controller(opts?: ControllerConfig): ClassDecorator;[m
+ [m
+ /**[m
+  * Marks this class as an external class.[m
+[1mdiff --git a/src/index.ts b/src/index.ts[m
+[1mindex 89a6226..5d53426 100644[m
+[1m--- a/src/index.ts[m
+[1m+++ b/src/index.ts[m
+[36m@@ -1,4 +1,5 @@[m
+ export { Reflect } from "./reflect";[m
+[32m+[m[32mexport { Modding } from "./modding";[m
+ export {[m
+ 	Controller,[m
+ 	Dependency,[m
+[1mdiff --git a/src/types.d.ts b/src/types.d.ts[m
+[1mindex 3df178f..8f07b71 100644[m
+[1m--- a/src/types.d.ts[m
+[1m+++ b/src/types.d.ts[m
+[36m@@ -1 +1,42 @@[m
+[32m+[m[32mimport { t } from "@rbxts/t";[m
+[32m+[m
+ export type Constructor<T = unknown> = new (...args: never[]) => T;[m
+[32m+[m[32mexport type Config =[m
+[32m+[m	[32m| (ComponentConfig & { type: "Component" })[m
+[32m+[m	[32m| (ServiceConfig & { type: "Service" })[m
+[32m+[m	[32m| (ControllerConfig & { type: "Controller" })[m
+[32m+[m	[32m| (ArbitraryConfig & { type: "Arbitrary" });[m
+[32m+[m
+[32m+[m[32mexport type ConfigType<T extends keyof ConfigTypes> = _<Extract<Config, { type: T }>>;[m
+[32m+[m
+[32m+[m[32mexport interface ConfigTypes {[m
+[32m+[m	[32mComponent: ComponentConfig;[m
+[32m+[m	[32mService: ServiceConfig;[m
+[32m+[m	[32mController: ControllerConfig;[m
+[32m+[m	[32mArbitrary: ArbitraryConfig;[m
+[32m+[m[32m}[m
+[32m+[m
+[32m+[m[32mexport interface ComponentConfig {[m
+[32m+[m	[32mtag?: string;[m
+[32m+[m	[32mattributes?: { [key: string]: t.check<unknown> };[m
+[32m+[m	[32mdefaults?: { [key: string]: unknown };[m
+[32m+[m	[32minstanceGuard?: t.check<unknown>;[m
+[32m+[m	[32mrefreshAttributes?: boolean;[m
+[32m+[m[32m}[m
+[32m+[m
+[32m+[m[32mexport interface ServiceConfig {[m
+[32m+[m	[32mloadOrder?: number;[m
+[32m+[m[32m}[m
+[32m+[m
+[32m+[m[32mexport interface ControllerConfig {[m
+[32m+[m	[32mloadOrder?: number;[m
+[32m+[m[32m}[m
+[32m+[m
+[32m+[m[32mexport interface ArbitraryConfig {[m
+[32m+[m	[32marguments: unknown[];[m
+[32m+[m[32m}[m
+[32m+[m
+[32m+[m[32mexport interface FlameworkConfig {[m
+[32m+[m	[32misDefault: boolean;[m
+[32m+[m	[32mloadOverride?: Constructor<unknown>[];[m
+[32m+[m[32m}[m

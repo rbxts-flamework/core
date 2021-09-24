@@ -1,46 +1,12 @@
 import Object from "@rbxts/object-utils";
 import { Players, RunService } from "@rbxts/services";
 import { t } from "@rbxts/t";
+import { Modding } from "./modding";
 import { Reflect } from "./reflect";
-import { Constructor } from "./types";
+import { Config, ConfigTypes, Constructor, ControllerConfig, FlameworkConfig, ServiceConfig } from "./types";
+import { isConstructor } from "./util/isConstructor";
 
 export namespace Flamework {
-	export type Config =
-		| (ComponentConfig & { type: "Component" })
-		| (ServiceConfig & { type: "Service" })
-		| (ControllerConfig & { type: "Controller" })
-		| (ArbitraryConfig & { type: "Arbitrary" });
-
-	export type ConfigType<T extends keyof ConfigTypes> = _<Extract<Config, { type: T }>>;
-
-	export interface ConfigTypes {
-		Component: ComponentConfig;
-		Service: ServiceConfig;
-		Controller: ControllerConfig;
-		Arbitrary: ArbitraryConfig;
-	}
-
-	export interface ComponentConfig {
-		tag?: string;
-		attributes?: { [key: string]: t.check<unknown> };
-		defaults?: { [key: string]: unknown };
-		instanceGuard?: t.check<unknown>;
-		refreshAttributes?: boolean;
-	}
-	export interface ServiceConfig {
-		loadOrder?: number;
-	}
-	export interface ControllerConfig {
-		loadOrder?: number;
-	}
-	export interface ArbitraryConfig {
-		arguments: unknown[];
-	}
-	export interface FlameworkConfig {
-		isDefault: boolean;
-		loadOverride?: Constructor<unknown>[];
-	}
-
 	export const flameworkConfig: FlameworkConfig = {
 		isDefault: true,
 	};
@@ -83,58 +49,8 @@ export namespace Flamework {
 		const dependency = createDependency(ctor);
 		resolvedDependencies.set(id, dependency);
 
+		Modding.addListenerObject(dependency as object);
 		return dependency;
-	}
-
-	/** @hidden */
-	export function _addPaths(...args: [...string[]][]) {
-		const preloadPaths = new Array<Instance>();
-		for (const arg of args) {
-			const service = arg.shift();
-			let currentPath: Instance = game.GetService(service as keyof Services);
-			if (service === "StarterPlayer") {
-				if (arg[0] !== "StarterPlayerScripts") throw "StarterPlayer only supports StarterPlayerScripts";
-				if (!RunService.IsClient()) throw "The server cannot load StarterPlayer content";
-				currentPath = Players.LocalPlayer.WaitForChild("PlayerScripts");
-				arg.shift();
-			}
-			for (let i = 0; i < arg.size(); i++) {
-				currentPath = currentPath.WaitForChild(arg[i]);
-			}
-			preloadPaths.push(currentPath);
-		}
-
-		const preload = (moduleScript: ModuleScript) => {
-			const start = os.clock();
-			const result = opcall(require, moduleScript);
-			const endTime = math.floor((os.clock() - start) * 1000);
-			if (!result.success) {
-				throw `${moduleScript.GetFullName()} failed to preload (${endTime}ms): ${result.error}`;
-			}
-			print(`Preloaded ${moduleScript.GetFullName()} (${endTime}ms)`);
-		};
-
-		for (const path of preloadPaths) {
-			if (path.IsA("ModuleScript")) {
-				preload(path);
-			}
-			for (const instance of path.GetDescendants()) {
-				if (instance.IsA("ModuleScript")) {
-					preload(instance);
-				}
-			}
-		}
-	}
-
-	/** @hidden */
-	export function _implements<T>(object: unknown, id: string): object is T {
-		return Reflect.getMetadatas<string[]>(object as object, "flamework:implements").some((impl) =>
-			impl.includes(id),
-		);
-	}
-
-	function isConstructor(obj: object): obj is Constructor {
-		return "new" in obj && "constructor" in obj;
 	}
 
 	function getDecorator<T extends Exclude<keyof ConfigTypes, "Arbitrary">>(ctor: object, configType: T) {
@@ -330,14 +246,14 @@ export declare function Dependency<T>(ctor?: Constructor<T>): T;
  *
  * @server
  */
-export declare function Service(opts?: Flamework.ServiceConfig): ClassDecorator;
+export declare function Service(opts?: ServiceConfig): ClassDecorator;
 
 /**
  * Register a class as a Controller.
  *
  * @client
  */
-export declare function Controller(opts?: Flamework.ControllerConfig): ClassDecorator;
+export declare function Controller(opts?: ControllerConfig): ClassDecorator;
 
 /**
  * Marks this class as an external class.

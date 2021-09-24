@@ -1,4 +1,5 @@
 export { Reflect } from "./reflect";
+export { Modding } from "./modding";
 export {
 	Controller,
 	Dependency,
