@@ -13,6 +13,7 @@ import {
 	ServiceConfig,
 } from "./types";
 import { getFlameworkDecorator } from "./util/getFlameworkDecorators";
+import { safeCall } from "./util/safeCall";
 
 export namespace Flamework {
 	const externalClasses = new Set<Constructor>();
@@ -104,6 +105,10 @@ export namespace Flamework {
 			}
 		}
 
+		for (const hook of preIgnitionHooks) {
+			safeCall(hook, "Failed to run pre ignition hook.");
+		}
+
 		for (const [ctor, identifier] of Reflect.objToId) {
 			if (!isConstructor(ctor)) continue;
 
@@ -178,6 +183,10 @@ export namespace Flamework {
 
 		for (const dependency of start) {
 			task.spawn(() => dependency.onStart());
+		}
+
+		for (const hook of postIgnitionHooks) {
+			safeCall(hook, "Failed to run post ignition hook.");
 		}
 
 		return dependencies;
