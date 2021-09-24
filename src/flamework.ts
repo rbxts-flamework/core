@@ -111,6 +111,7 @@ export namespace Flamework {
 
 		for (const [ctor, identifier] of Reflect.objToId) {
 			if (!isConstructor(ctor)) continue;
+			if (!getFlameworkDecorator(ctor, "Service") && !getFlameworkDecorator(ctor, "Controller")) continue;
 
 			const isPatched = Reflect.getOwnMetadata<boolean>(ctor, "flamework:isPatched");
 			if (flameworkConfig.loadOverride && !flameworkConfig.loadOverride.includes(ctor)) {
