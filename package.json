@@ -4,9 +4,9 @@
   "description": "",
   "main": "out/init.lua",
   "scripts": {
-    "prepublishOnly": "rbxtsc",
-    "build": "rbxtsc --type package",
-    "watch": "rbxtsc --type package -w"
+    "prepare": "rbxtsc",
+    "build": "rbxtsc",
+    "watch": "rbxtsc -w"
   },
   "homepage": "https://github.com/FireTS/rbxts-flamework",
   "repository": {
