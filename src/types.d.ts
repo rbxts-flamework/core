@@ -7,6 +7,7 @@ export type Config =
 	| (ControllerConfig & { type: "Controller" })
 	| (ArbitraryConfig & { type: "Arbitrary" });
 
+export type LoadableConfigs = Extract<Config, { type: "Service" | "Controller" }>;
 export type ConfigType<T extends keyof ConfigTypes> = _<Extract<Config, { type: T }>>;
 
 export interface ConfigTypes {
@@ -39,4 +40,16 @@ export interface ArbitraryConfig {
 export interface FlameworkConfig {
 	isDefault: boolean;
 	loadOverride?: Constructor<unknown>[];
+}
+
+export interface FlameworkIgnitionHooks {
+	/**
+	 * A hook fired prior to Flamework's ignition.
+	 */
+	pre?: () => void;
+
+	/**
+	 * A hook fired after Flamework's ignition.
+	 */
+	post?: () => void;
 }

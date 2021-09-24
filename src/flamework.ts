@@ -3,17 +3,30 @@ import { Players, RunService } from "@rbxts/services";
 import { t } from "@rbxts/t";
 import { Modding } from "./modding";
 import { Reflect } from "./reflect";
-import { Config, ConfigTypes, Constructor, ControllerConfig, FlameworkConfig, ServiceConfig } from "./types";
 import { isConstructor } from "./util/isConstructor";
+import {
+	Constructor,
+	ControllerConfig,
+	FlameworkConfig,
+	FlameworkIgnitionHooks,
+	LoadableConfigs,
+	ServiceConfig,
+} from "./types";
+import { getFlameworkDecorator } from "./util/getFlameworkDecorators";
 
 export namespace Flamework {
-	export const flameworkConfig: FlameworkConfig = {
-		isDefault: true,
-	};
-	export let isInitialized = false;
-
+	const externalClasses = new Set<Constructor>();
 	const resolvedDependencies = new Map<string, unknown>();
 	const loadingList = new Array<Constructor>();
+
+	const preIgnitionHooks = new Array<() => void>();
+	const postIgnitionHooks = new Array<() => void>();
+
+	const flameworkConfig: FlameworkConfig = {
+		isDefault: true,
+	};
+
+	let hasFlameworkIgnited = false;
 
 	/** @hidden */
 	export function createDependency(ctor: Constructor) {
@@ -53,22 +66,6 @@ export namespace Flamework {
 		return dependency;
 	}
 
-	function getDecorator<T extends Exclude<keyof ConfigTypes, "Arbitrary">>(ctor: object, configType: T) {
-		const decorators = Reflect.getMetadatas<string[]>(ctor, "flamework:decorators");
-		if (!decorators) return undefined;
-
-		for (const decoratorIds of decorators) {
-			for (const decoratorId of decoratorIds) {
-				const config = Reflect.getMetadata<Config>(ctor, `flamework:decorators.${decoratorId}`);
-				if (config?.type === configType) {
-					return config as ConfigTypes[T] & { type: T };
-				}
-			}
-		}
-	}
-
-	const externalClasses = new Set<Constructor>();
-
 	/**
 	 * Allow an external module to be bootstrapped by Flamework.ignite()
 	 */
@@ -76,8 +73,15 @@ export namespace Flamework {
 		externalClasses.add(ctor);
 	}
 
-	type LoadableConfigs = Extract<Config, { type: "Service" | "Controller" }>;
-	let hasFlameworkIgnited = false;
+	/**
+	 * Register hooks for Flamework ignition.
+	 *
+	 * You should use hooks to setup custom lifecycle events, decorators, etc.
+	 */
+	export function registerHooks(hook: FlameworkIgnitionHooks) {
+		if (hook.post !== undefined) postIgnitionHooks.push(hook.post);
+		if (hook.pre !== undefined) preIgnitionHooks.push(hook.pre);
+	}
 
 	/**
 	 * Initialize Flamework.
@@ -117,7 +121,7 @@ export namespace Flamework {
 			const ctor = Reflect.idToObj.get(id);
 			if (ctor === undefined) throw `Could not find constructor for ${id}`;
 
-			const decorator = getDecorator(ctor, decoratorType);
+			const decorator = getFlameworkDecorator(ctor, decoratorType);
 			if (!decorator) continue;
 
 			const isExternal = Reflect.getOwnMetadata<boolean>(ctor, "flamework:isExternal");
@@ -151,8 +155,6 @@ export namespace Flamework {
 				initResult.await();
 			}
 		}
-
-		isInitialized = true;
 
 		RunService.Heartbeat.Connect((dt) => {
 			for (const dependency of tick) {
