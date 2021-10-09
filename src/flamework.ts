@@ -111,7 +111,6 @@ export namespace Flamework {
 			if (!result.success) {
 				throw `${moduleScript.GetFullName()} failed to preload (${endTime}ms): ${result.error}`;
 			}
-			print(`Preloaded ${moduleScript.GetFullName()} (${endTime}ms)`);
 		};
 
 		for (const path of preloadPaths) {
