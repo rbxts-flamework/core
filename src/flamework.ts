@@ -132,6 +132,14 @@ export namespace Flamework {
 		);
 	}
 
+	function isService(ctor: object) {
+		return Reflect.hasOwnMetadata(ctor, `flamework:decorators.${Flamework.id<typeof Service>()}`);
+	}
+
+	function isController(ctor: object) {
+		return Reflect.hasOwnMetadata(ctor, `flamework:decorators.${Flamework.id<typeof Controller>()}`);
+	}
+
 	function isConstructor(obj: object): obj is Constructor {
 		return "new" in obj && "constructor" in obj;
 	}
@@ -184,12 +192,18 @@ export namespace Flamework {
 		}
 
 		for (const [ctor, identifier] of Reflect.objToId) {
+			if (RunService.IsServer() && !isService(ctor)) continue;
+			if (RunService.IsClient() && !isController(ctor)) continue;
 			if (!isConstructor(ctor)) continue;
 
 			const isPatched = Reflect.getOwnMetadata<boolean>(ctor, "flamework:isPatched");
 			if (flameworkConfig.loadOverride && !flameworkConfig.loadOverride.includes(ctor)) {
 				if (!isPatched) continue;
 			}
+
+			const isExternal = Reflect.getOwnMetadata<boolean>(ctor, "flamework:isExternal");
+			if (isExternal && !externalClasses.has(ctor as Constructor)) continue;
+
 			resolveDependency(identifier);
 		}
 
