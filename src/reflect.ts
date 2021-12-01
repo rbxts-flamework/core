@@ -1,4 +1,5 @@
-import Object from "@rbxts/object-utils";
+import type { ClassDescriptor, MethodDescriptor, PropertyDescriptor } from "./modding";
+import { Constructor } from "./types";
 
 /**
  * Reflection/metadata API
@@ -6,6 +7,7 @@ import Object from "@rbxts/object-utils";
 export namespace Reflect {
 	// object -> property -> key -> value
 	export const metadata = new WeakMap<object, Map<string | typeof NO_PROP_MARKER, Map<string, unknown>>>();
+	export const decorators = new Map<string, Array<object>>();
 	export const idToObj = new Map<string, object>();
 	export const objToId = new Map<object, string>();
 
@@ -165,5 +167,30 @@ export namespace Reflect {
 		}
 
 		return [...keys];
+	}
+
+	/** @hidden */
+	export function decorate(
+		object: Constructor,
+		id: string,
+		decoration: {
+			func: (descriptor: ClassDescriptor | MethodDescriptor | PropertyDescriptor, config: unknown[]) => void;
+		},
+		args: unknown[],
+		property?: string,
+		isStatic = false,
+	) {
+		const descriptor = {
+			id,
+			isStatic,
+			object,
+			property,
+		};
+
+		let decoratedObjects = decorators.get(id);
+		if (!decoratedObjects) decorators.set(id, (decoratedObjects = []));
+
+		decoratedObjects.push(object);
+		decoration.func(descriptor, args);
 	}
 }

@@ -1,25 +1,10 @@
-import Object from "@rbxts/object-utils";
 import { Players, RunService } from "@rbxts/services";
 import { t } from "@rbxts/t";
+import { Modding } from "./modding";
 import { Reflect } from "./reflect";
 import { Constructor } from "./types";
 
 export namespace Flamework {
-	export type Config =
-		| (ComponentConfig & { type: "Component" })
-		| (ServiceConfig & { type: "Service" })
-		| (ControllerConfig & { type: "Controller" })
-		| (ArbitraryConfig & { type: "Arbitrary" });
-
-	export type ConfigType<T extends keyof ConfigTypes> = _<Extract<Config, { type: T }>>;
-
-	export interface ConfigTypes {
-		Component: ComponentConfig;
-		Service: ServiceConfig;
-		Controller: ControllerConfig;
-		Arbitrary: ArbitraryConfig;
-	}
-
 	export interface ComponentConfig {
 		tag?: string;
 		attributes?: { [key: string]: t.check<unknown> };
@@ -33,7 +18,7 @@ export namespace Flamework {
 	export interface ControllerConfig {
 		loadOrder?: number;
 	}
-	export interface ArbitraryConfig {
+	export interface Decorator {
 		arguments: unknown[];
 	}
 	export interface FlameworkConfig {
@@ -67,6 +52,7 @@ export namespace Flamework {
 		const dependency = new ctor(...constructorDependencies);
 		loadingList.pop();
 
+		Modding.addListener(dependency as object);
 		return dependency;
 	}
 
@@ -133,29 +119,15 @@ export namespace Flamework {
 	}
 
 	function isService(ctor: object) {
-		return Reflect.hasOwnMetadata(ctor, `flamework:decorators.${Flamework.id<typeof Service>()}`);
+		return Modding.getDecorator(Flamework.id<typeof Service>(), ctor) !== undefined;
 	}
 
 	function isController(ctor: object) {
-		return Reflect.hasOwnMetadata(ctor, `flamework:decorators.${Flamework.id<typeof Controller>()}`);
+		return Modding.getDecorator(Flamework.id<typeof Controller>(), ctor) !== undefined;
 	}
 
 	function isConstructor(obj: object): obj is Constructor {
 		return "new" in obj && "constructor" in obj;
-	}
-
-	function getDecorator<T extends Exclude<keyof ConfigTypes, "Arbitrary">>(ctor: object, configType: T) {
-		const decorators = Reflect.getMetadatas<string[]>(ctor, "flamework:decorators");
-		if (!decorators) return undefined;
-
-		for (const decoratorIds of decorators) {
-			for (const decoratorId of decoratorIds) {
-				const config = Reflect.getMetadata<Config>(ctor, `flamework:decorators.${decoratorId}`);
-				if (config?.type === configType) {
-					return config as ConfigTypes[T] & { type: T };
-				}
-			}
-		}
 	}
 
 	const externalClasses = new Set<Constructor>();
@@ -167,7 +139,7 @@ export namespace Flamework {
 		externalClasses.add(ctor);
 	}
 
-	type LoadableConfigs = Extract<Config, { type: "Service" | "Controller" }>;
+	type LoadableConfigs = ServiceConfig | ControllerConfig;
 	let hasFlameworkIgnited = false;
 
 	/**
@@ -208,38 +180,44 @@ export namespace Flamework {
 		}
 
 		const dependencies = new Array<[unknown, LoadableConfigs]>();
-		const decoratorType = RunService.IsServer() ? "Service" : "Controller";
+		const decoratorType = RunService.IsServer()
+			? Flamework.id<typeof Service>()
+			: Flamework.id<typeof Controller>();
 
 		for (const [id] of resolvedDependencies) {
 			const ctor = Reflect.idToObj.get(id);
 			if (ctor === undefined) throw `Could not find constructor for ${id}`;
 
-			const decorator = getDecorator(ctor, decoratorType);
+			const decorator = Modding.getDecorator<[LoadableConfigs?]>(decoratorType, ctor);
 			if (!decorator) continue;
 
 			const isExternal = Reflect.getOwnMetadata<boolean>(ctor, "flamework:isExternal");
 			if (isExternal && !externalClasses.has(ctor as Constructor)) continue;
 
 			const dependency = resolveDependency(id);
-			dependencies.push([dependency, decorator]);
+			dependencies.push([dependency, decorator.arguments[0] || {}]);
 		}
 
 		const start = new Array<OnStart>();
 		const init = new Array<OnInit>();
 
-		const tick = new Array<OnTick>();
-		const render = new Array<OnRender>();
-		const physics = new Array<OnPhysics>();
+		const tick = new Set<OnTick>();
+		const render = new Set<OnRender>();
+		const physics = new Set<OnPhysics>();
 
 		dependencies.sort(([, a], [, b]) => (a.loadOrder ?? 1) < (b.loadOrder ?? 1));
+
+		Modding.onListenerAdded(Flamework.id<OnTick>(), (object) => tick.add(object as OnTick));
+		Modding.onListenerAdded(Flamework.id<OnPhysics>(), (object) => physics.add(object as OnPhysics));
+		Modding.onListenerAdded(Flamework.id<OnRender>(), (object) => render.add(object as OnRender));
+
+		Modding.onListenerRemoved(Flamework.id<OnTick>(), (object) => tick.delete(object as OnTick));
+		Modding.onListenerRemoved(Flamework.id<OnPhysics>(), (object) => physics.delete(object as OnPhysics));
+		Modding.onListenerRemoved(Flamework.id<OnRender>(), (object) => render.delete(object as OnRender));
 
 		for (const [dependency] of dependencies) {
 			if (Flamework.implements<OnInit>(dependency)) init.push(dependency);
 			if (Flamework.implements<OnStart>(dependency)) start.push(dependency);
-
-			if (Flamework.implements<OnTick>(dependency)) tick.push(dependency);
-			if (Flamework.implements<OnPhysics>(dependency)) physics.push(dependency);
-			if (Flamework.implements<OnRender>(dependency)) render.push(dependency);
 		}
 
 		for (const dependency of init) {
@@ -343,14 +321,14 @@ export declare function Dependency<T>(ctor?: Constructor<T>): T;
  *
  * @server
  */
-export declare function Service(opts?: Flamework.ServiceConfig): ClassDecorator;
+export const Service = Modding.createMetaDecorator<[opts?: Flamework.ServiceConfig]>("Class");
 
 /**
  * Register a class as a Controller.
  *
  * @client
  */
-export declare function Controller(opts?: Flamework.ControllerConfig): ClassDecorator;
+export const Controller = Modding.createMetaDecorator<[opts?: Flamework.ControllerConfig]>("Class");
 
 /**
  * Marks this class as an external class.
@@ -360,7 +338,9 @@ export declare function Controller(opts?: Flamework.ControllerConfig): ClassDeco
  * inside of a package will make the class load as long as
  * it has been loaded.
  */
-export declare function External(): ClassDecorator;
+export const External = Modding.createDecorator("Class", (descriptor) => {
+	Reflect.defineMetadata(descriptor.object, `flamework:isExternal`, true);
+});
 
 /**
  * Hook into the OnInit lifecycle event.
