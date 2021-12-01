@@ -187,10 +187,13 @@ export namespace Reflect {
 			property,
 		};
 
-		let decoratedObjects = decorators.get(id);
-		if (!decoratedObjects) decorators.set(id, (decoratedObjects = []));
+		if (property === undefined) {
+			let decoratedObjects = decorators.get(id);
+			if (!decoratedObjects) decorators.set(id, (decoratedObjects = []));
 
-		decoratedObjects.push(object);
+			decoratedObjects.push(object);
+		}
+
 		decoration.func(descriptor, args);
 	}
 }

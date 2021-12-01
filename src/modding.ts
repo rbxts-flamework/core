@@ -221,11 +221,8 @@ export namespace Modding {
 		func: (...args: never[]) => void,
 	): ClassDecorator | MethodDecorator | PropertyDecorator {
 		return {
-			func: (descriptor: ClassDescriptor, config: unknown[]) => {
-				Reflect.defineMetadata(descriptor.object, `flamework:decorators.${descriptor.id}`, {
-					type: "Arbitrary",
-					arguments: config,
-				});
+			func: (descriptor: PropertyDescriptor, config: unknown[]) => {
+				defineDecoratorMetadata(descriptor, config);
 				func(descriptor as never, config as never);
 			},
 		} as never;
@@ -259,11 +256,8 @@ export namespace Modding {
 		_kind: "Method" | "Property" | "Class",
 	): ClassDecorator | MethodDecorator | PropertyDecorator {
 		return {
-			func: (descriptor: ClassDescriptor, config: unknown[]) => {
-				Reflect.defineMetadata(descriptor.object, `flamework:decorators.${descriptor.id}`, {
-					type: "Arbitrary",
-					arguments: config,
-				});
+			func: (descriptor: PropertyDescriptor, config: unknown[]) => {
+				defineDecoratorMetadata(descriptor, config);
 			},
 		} as never;
 	}
@@ -298,5 +292,16 @@ export namespace Modding {
 		if (!decorator) return;
 
 		return decorator as never;
+	}
+
+	function defineDecoratorMetadata(descriptor: PropertyDescriptor, config: unknown[]) {
+		Reflect.defineMetadata(
+			descriptor.object,
+			`flamework:decorators.${descriptor.id}`,
+			{
+				arguments: config,
+			},
+			descriptor.isStatic ? `static:${descriptor.property}` : descriptor.property,
+		);
 	}
 }
