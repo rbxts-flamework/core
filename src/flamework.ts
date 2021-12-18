@@ -39,7 +39,7 @@ export namespace Flamework {
 		if (loadingList.includes(ctor)) throw `Circular dependency detected ${loadingList.join(" <=> ")} <=> ${ctor}`;
 		loadingList.push(ctor);
 
-		const dependencies = Reflect.getMetadata<string[]>(ctor, "flamework:dependencies");
+		const dependencies = Reflect.getMetadata<string[]>(ctor, "flamework:parameters");
 
 		const constructorDependencies: never[] = [];
 		if (dependencies) {
@@ -320,6 +320,7 @@ export declare function Dependency<T>(ctor?: Constructor<T>): T;
  * Register a class as a Service.
  *
  * @server
+ * @metadata flamework:implements flamework:parameters
  */
 export const Service = Modding.createMetaDecorator<[opts?: Flamework.ServiceConfig]>("Class");
 
@@ -327,6 +328,7 @@ export const Service = Modding.createMetaDecorator<[opts?: Flamework.ServiceConf
  * Register a class as a Controller.
  *
  * @client
+ * @metadata flamework:implements flamework:parameters
  */
 export const Controller = Modding.createMetaDecorator<[opts?: Flamework.ControllerConfig]>("Class");
 
