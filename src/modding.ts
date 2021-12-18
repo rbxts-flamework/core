@@ -280,6 +280,22 @@ export namespace Modding {
 		});
 	}
 
+	export function getPropertyDecorators<T extends readonly unknown[]>(
+		obj: object,
+		id: string,
+	): Map<string, { arguments: T }> {
+		const decorators = new Map<string, { arguments: T }>();
+
+		for (const prop of Reflect.getProperties(obj)) {
+			const decorator = getDecorator(id, obj, prop);
+			if (decorator) {
+				decorators.set(prop, decorator as never);
+			}
+		}
+
+		return decorators;
+	}
+
 	/**
 	 * Retrieves a decorator from an object or its properties.
 	 */

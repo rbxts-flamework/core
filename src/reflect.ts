@@ -103,6 +103,22 @@ export namespace Reflect {
 	}
 
 	/**
+	 * Retrieves all properties (that contain metadata) on this object.
+	 */
+	export function getOwnProperties(obj: object) {
+		const properties = metadata.get(obj);
+		if (!properties) return [];
+
+		const keys = new Array<string>();
+		for (const [key] of properties) {
+			if (key !== NO_PROP_MARKER) {
+				keys.push(key as string);
+			}
+		}
+		return keys;
+	}
+
+	/**
 	 * Retrieve all values for the specified key from the object and its parents.
 	 * Type parameter is an assertion.
 	 */
@@ -164,6 +180,20 @@ export namespace Reflect {
 		const parent = getParentConstructor(obj);
 		if (parent) {
 			getMetadataKeys(parent, property).forEach((key) => keys.add(key));
+		}
+
+		return [...keys];
+	}
+
+	/**
+	 * Retrieves all properties (that contain metadata) on this object and its parents.
+	 */
+	export function getProperties(obj: object) {
+		const keys = new Set<string>(getOwnProperties(obj));
+
+		const parent = getParentConstructor(obj);
+		if (parent) {
+			getProperties(parent).forEach((key) => keys.add(key));
 		}
 
 		return [...keys];
