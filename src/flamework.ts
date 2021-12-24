@@ -31,45 +31,13 @@ export namespace Flamework {
 	};
 	export let isInitialized = false;
 
-	const resolvedDependencies = new Map<string, unknown>();
-	const loadingList = new Array<Constructor>();
-
-	/** @hidden */
-	export function createDependency(ctor: Constructor) {
-		if (loadingList.includes(ctor)) throw `Circular dependency detected ${loadingList.join(" <=> ")} <=> ${ctor}`;
-		loadingList.push(ctor);
-
-		const dependencies = Reflect.getMetadata<string[]>(ctor, "flamework:parameters");
-
-		const constructorDependencies: never[] = [];
-		if (dependencies) {
-			for (const [index, dependencyId] of pairs(dependencies)) {
-				const dependency = resolveDependency(dependencyId);
-				constructorDependencies[index - 1] = dependency as never;
-			}
-		}
-
-		const dependency = new ctor(...constructorDependencies);
-		loadingList.pop();
-
-		Modding.addListener(dependency as object);
-		return dependency;
-	}
-
 	/** @hidden */
 	export function resolveDependency(id: string) {
-		const resolvedDependency = resolvedDependencies.get(id);
-		if (resolvedDependency !== undefined) return resolvedDependency;
-
 		const ctor = Reflect.idToObj.get(id);
 		if (ctor === undefined) throw `Dependency ${id} could not be found.`;
+		if (!isConstructor(ctor)) throw `Dependency ${id} did not resolve to a constructor.`;
 
-		assert(isConstructor(ctor));
-
-		const dependency = createDependency(ctor);
-		resolvedDependencies.set(id, dependency);
-
-		return dependency;
+		return Modding.resolveSingleton(ctor);
 	}
 
 	/** @hidden */
@@ -184,17 +152,14 @@ export namespace Flamework {
 			? Flamework.id<typeof Service>()
 			: Flamework.id<typeof Controller>();
 
-		for (const [id] of resolvedDependencies) {
-			const ctor = Reflect.idToObj.get(id);
-			if (ctor === undefined) throw `Could not find constructor for ${id}`;
-
+		for (const [ctor] of Modding.getSingletons()) {
 			const decorator = Modding.getDecorator<[LoadableConfigs?]>(decoratorType, ctor);
 			if (!decorator) continue;
 
 			const isExternal = Reflect.getOwnMetadata<boolean>(ctor, "flamework:isExternal");
 			if (isExternal && !externalClasses.has(ctor as Constructor)) continue;
 
-			const dependency = resolveDependency(id);
+			const dependency = Modding.resolveSingleton(ctor);
 			dependencies.push([dependency, decorator.arguments[0] || {}]);
 		}
 
@@ -291,10 +256,10 @@ export namespace Flamework {
 	export namespace Testing {
 		export function patchDependency<T>(patchedClass: Constructor<unknown>, id?: string) {
 			if (id === undefined) throw `Patching failed, no ID`;
-			if (resolvedDependencies.has(id)) throw `${id} has already been resolved, continuing is unsafe`;
 
 			const idCtor = Reflect.idToObj.get(id) as Constructor;
 			if (idCtor === undefined) throw `Dependency ${id} was not found and cannot be patched.`;
+			if (Modding.getSingletons().has(idCtor)) throw `${id} has already been resolved, continuing is unsafe`;
 
 			const objMetadata = Reflect.metadata.get(idCtor);
 			if (!objMetadata) throw `Dependency ${id} has no existing metadata.`;
@@ -308,9 +273,6 @@ export namespace Flamework {
 		}
 	}
 }
-
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-type ClassDecorator = (ctor: any) => any;
 
 export declare function Dependency<T>(): T;
 export declare function Dependency<T>(ctor: Constructor<T>): T;

@@ -38,6 +38,7 @@ type DecoratorCall<T extends readonly unknown[], D> = T extends { length: 0 }
 
 type ListenerAddedEvent = (object: object) => void;
 type ListenerRemovedEvent = (object: object) => void;
+type DependencyRegistration = object | ((ctor: Constructor) => object);
 
 interface Listener {
 	eventIds: Set<string>;
@@ -53,6 +54,10 @@ export namespace Modding {
 	const listenerRemoved = new Signal<ListenerRemovedEvent>();
 	const listenerAddedEvents = new Map<string, Signal<ListenerAddedEvent>>();
 	const listenerRemovedEvents = new Map<string, Signal<ListenerRemovedEvent>>();
+
+	const dependencyResolution = new Map<string, (ctor: Constructor) => object>();
+	const resolvedSingletons = new Map<Constructor, unknown>();
+	const loadingList = new Array<Constructor>();
 
 	/**
 	 * Registers a listener for lifecycle events.
@@ -310,6 +315,113 @@ export namespace Modding {
 		return decorator as never;
 	}
 
+	/**
+	 * Retrieves a singleton or instantiates one if it does not exist.
+	 */
+	export function resolveSingleton<T extends object>(ctor: Constructor<T>, opts?: DependencyResolutionOptions) {
+		const resolvedDependency = resolvedSingletons.get(ctor);
+		if (resolvedDependency !== undefined) return resolvedDependency;
+
+		// Flamework can resolve singletons at any arbitrary point,
+		// so we should fetch custom dependency resolution (added via decorator) through the Reflect api.
+		if (opts === undefined) {
+			opts = Reflect.getOwnMetadata<DependencyResolutionOptions>(ctor, "flamework:dependency_resolution");
+		}
+
+		const dependency = createDependency(ctor, opts);
+		resolvedSingletons.set(ctor, dependency);
+
+		return dependency;
+	}
+
+	/** @internal Used for bootstrapping */
+	export function getSingletons() {
+		return resolvedSingletons;
+	}
+
+	/**
+	 * Modifies dependency resolution for a specific ID.
+	 *
+	 * If a function is passed, it will be called, passing the target constructor, every time that ID needs to be resolved.
+	 * Otherwise, the passed object is returned directly.
+	 */
+	export function registerDependency(id: string, dependency: DependencyRegistration) {
+		if (typeIs(dependency, "function")) {
+			dependencyResolution.set(id, dependency);
+		} else {
+			dependencyResolution.set(id, () => dependency);
+		}
+	}
+
+	/**
+	 * Instantiates this class using dependency injection and registers it as a listener.
+	 */
+	export function createDependency<T extends object>(
+		ctor: Constructor<T>,
+		options: DependencyResolutionOptions = {},
+	) {
+		if (loadingList.includes(ctor)) throw `Circular dependency detected ${loadingList.join(" <=> ")} <=> ${ctor}`;
+		loadingList.push(ctor);
+
+		const dependencies = Reflect.getMetadata<string[]>(ctor, "flamework:parameters");
+		const constructorDependencies: never[] = [];
+		if (dependencies) {
+			for (const [index, dependencyId] of pairs(dependencies)) {
+				constructorDependencies[index - 1] = resolveDependency(ctor, dependencyId, index - 1, options) as never;
+			}
+		}
+
+		const dependency = new ctor(...constructorDependencies);
+		Modding.addListener(dependency);
+		loadingList.pop();
+		return dependency;
+	}
+
+	/**
+	 * Dependency resolution logic.
+	 */
+	function resolveDependency(
+		ctor: Constructor,
+		dependencyId: string,
+		index: number,
+		options: DependencyResolutionOptions,
+	) {
+		if (options.handle !== undefined) {
+			const dependency = options.handle(dependencyId, index);
+			if (dependency !== undefined) {
+				return dependency;
+			}
+		}
+
+		const resolution = dependencyResolution.get(dependencyId);
+		if (resolution !== undefined) {
+			return resolution(ctor);
+		}
+
+		if (dependencyId.sub(1, 2) === "$p") {
+			if (dependencyId.sub(1, 3) === "$ps") {
+				return dependencyId.sub(5);
+			}
+
+			if (dependencyId.sub(1, 3) === "$pn") {
+				return tonumber(dependencyId.sub(5)) ?? 0;
+			}
+
+			if (options.handlePrimitive !== undefined) {
+				return options.handlePrimitive(dependencyId, index);
+			}
+
+			throw `Unexpected primitive dependency '${dependencyId}' while constructing ${ctor}`;
+		}
+
+		const dependencyCtor = Reflect.idToObj.get(dependencyId);
+		if (!dependencyCtor || !isConstructor(dependencyCtor)) {
+			throw `Could not find constructor for ${dependencyId} while constructing ${ctor}`;
+		}
+
+		return resolveSingleton(dependencyCtor);
+	}
+
 	function defineDecoratorMetadata(descriptor: PropertyDescriptor, config: unknown[]) {
 		Reflect.defineMetadata(
 			descriptor.object,
@@ -320,4 +432,22 @@ export namespace Modding {
 			descriptor.isStatic ? `static:${descriptor.property}` : descriptor.property,
 		);
 	}
+}
+
+interface DependencyResolutionOptions {
+	/**
+	 * Fires whenever a dependency is attempting to be resolved.
+	 *
+	 * Return undefined to let Flamework resolve it.
+	 */
+	handle?: (id: string, index: number) => unknown;
+
+	/**
+	 * Fires whenever Flamework tries to resolve a primitive (e.g string)
+	 */
+	handlePrimitive?: (id: string, index: number) => defined;
+}
+
+function isConstructor(obj: object): obj is Constructor {
+	return "new" in obj && "constructor" in obj;
 }

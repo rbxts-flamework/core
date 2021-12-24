@@ -1,1 +1,1 @@
-export type Constructor<T = unknown> = new (...args: never[]) => T;
+export type Constructor<T = object> = new (...args: never[]) => T;
