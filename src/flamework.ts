@@ -26,6 +26,7 @@ export namespace Flamework {
 		defaults?: { [key: string]: unknown };
 		instanceGuard?: t.check<unknown>;
 		refreshAttributes?: boolean;
+		suppressInstanceGuardFails?: boolean;
 	}
 	export interface ServiceConfig {
 		loadOrder?: number;
