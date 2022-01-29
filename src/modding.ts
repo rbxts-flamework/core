@@ -309,7 +309,7 @@ export namespace Modding {
 		object: object,
 		property?: string,
 	): { arguments: T } | undefined {
-		const decorator = Reflect.getOwnMetadata<Flamework.Decorator>(object, `flamework:decorators.${id}`, property);
+		const decorator = Reflect.getMetadata<Flamework.Decorator>(object, `flamework:decorators.${id}`, property);
 		if (!decorator) return;
 
 		return decorator as never;
@@ -423,14 +423,22 @@ export namespace Modding {
 	}
 
 	function defineDecoratorMetadata(descriptor: PropertyDescriptor, config: unknown[]) {
+		const propertyKey = descriptor.isStatic ? `static:${descriptor.property}` : descriptor.property;
 		Reflect.defineMetadata(
 			descriptor.object,
 			`flamework:decorators.${descriptor.id}`,
 			{
 				arguments: config,
 			},
-			descriptor.isStatic ? `static:${descriptor.property}` : descriptor.property,
+			propertyKey,
 		);
+
+		let decoratorList = Reflect.getMetadata<string[]>(descriptor.object, `flamework:decorators`, propertyKey);
+		if (!decoratorList) {
+			Reflect.defineMetadata(descriptor.object, "flamework:decorators", (decoratorList = []), propertyKey);
+		}
+
+		decoratorList.push(descriptor.id);
 	}
 }
 
