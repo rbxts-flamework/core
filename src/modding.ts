@@ -22,19 +22,22 @@ export interface PropertyDescriptor extends BaseDescriptor {
 	isStatic: boolean;
 }
 
-type Decorator<T> = T & { /** @hidden */ _flamework_Decorator: never };
-type ClassDecorator = (ctor: defined) => never;
-type MethodDecorator = (target: defined, propertyKey: string, descriptor: defined) => never;
-type PropertyDecorator = (target: defined, propertyKey: string) => never;
-
 interface AttachedDecorator<T extends readonly unknown[]> {
 	object: Constructor;
 	arguments: T;
 }
 
-type DecoratorCall<T extends readonly unknown[], D> = T extends { length: 0 }
-	? ((...args: T) => D) & D
-	: (...args: T) => D;
+type TSDecorator<T> = T & { /** @hidden */ _flamework_Decorator: never };
+type ClassDecorator = TSDecorator<(ctor: defined) => never>;
+type MethodDecorator = TSDecorator<(target: defined, propertyKey: string, descriptor: defined) => never>;
+type PropertyDecorator = TSDecorator<(target: defined, propertyKey: string) => never>;
+type DecoratorWithMetadata<T, P> = T & { _flamework_Parameters: P };
+type DecoratorParameters<T> = T extends { _flamework_Parameters: infer P } ? P : [];
+type AnyDecorator = DecoratorWithMetadata<(...args: never[]) => unknown, unknown[]>;
+type Decorator<P extends readonly unknown[], D> = DecoratorWithMetadata<
+	P extends { length: 0 } ? ((...args: P) => D) & D : (...args: P) => D,
+	P
+>;
 
 type ListenerAddedEvent = (object: object) => void;
 type ListenerRemovedEvent = (object: object) => void;
@@ -123,26 +126,31 @@ export namespace Modding {
 	/**
 	 * Registers a listener added event.
 	 * Fires whenever any listener is added.
+	 *
 	 * Fires for all existing listeners.
 	 */
 	export function onListenerAdded(func: ListenerAddedEvent): RBXScriptConnection;
 
 	/**
 	 * Registers a listener added event.
-	 * Fires whenever a listener has a decorator or lifecycle event with the specified ID.
-	 * Fires for all existing listeners.
+	 * Fires whenever a listener has a decorator with the specified ID.
 	 *
-	 * @param id The ID of a lifecycle event or decorator.
+	 * Fires for all existing listeners.
 	 */
-	export function onListenerAdded(id: string, func: ListenerAddedEvent): RBXScriptConnection;
+	export function onListenerAdded<T extends AnyDecorator>(func: ListenerAddedEvent, id?: string): RBXScriptConnection;
+
+	/**
+	 * Registers a listener added event.
+	 * Fires whenever a listener has a lifecycle event with the specified ID.
+	 *
+	 * Fires for all existing listeners.
+	 */
+	export function onListenerAdded<T>(func: (value: T) => void, id?: string): RBXScriptConnection;
 
 	/**
 	 * Registers a listener added event.
 	 */
-	export function onListenerAdded(_id: string | ListenerAddedEvent, _func?: ListenerAddedEvent) {
-		const id = typeIs(_id, "string") ? _id : undefined;
-		const func = typeIs(_id, "string") ? _func! : _id;
-
+	export function onListenerAdded(func: ListenerAddedEvent, id?: string) {
 		if (id !== undefined) {
 			let listenerAddedEvent = listenerAddedEvents.get(id);
 			if (!listenerAddedEvent) listenerAddedEvents.set(id, (listenerAddedEvent = new Signal()));
@@ -165,25 +173,29 @@ export namespace Modding {
 
 	/**
 	 * Registers a listener removed event.
+	 *
 	 * Fires whenever any listener is removed.
 	 */
 	export function onListenerRemoved(func: ListenerRemovedEvent): RBXScriptConnection;
 
 	/**
 	 * Registers a listener removed event.
-	 * Fires whenever a listener has a decorator or lifecycle event with the specified ID.
 	 *
-	 * @param id The ID of a lifecycle event or decorator.
+	 * Fires whenever a listener has a decorator with the specified ID.
 	 */
-	export function onListenerRemoved(id: string, func: ListenerRemovedEvent): RBXScriptConnection;
+	export function onListenerRemoved<T extends AnyDecorator>(func: ListenerRemovedEvent): RBXScriptConnection;
+
+	/**
+	 * Registers a listener removed event.
+	 *
+	 * Fires whenever a listener has a lifecycle event with the specified ID.
+	 */
+	export function onListenerRemoved<T>(func: (object: T) => void, id?: string): RBXScriptConnection;
 
 	/**
 	 * Registers a listener removed event.
 	 */
-	export function onListenerRemoved(_id: string | ListenerRemovedEvent, _func?: ListenerRemovedEvent) {
-		const id = typeIs(_id, "string") ? _id : undefined;
-		const func = typeIs(_id, "string") ? _func! : _id;
-
+	export function onListenerRemoved(func: ListenerRemovedEvent, id?: string) {
 		if (id !== undefined) {
 			let listenerRemovedEvent = listenerRemovedEvents.get(id);
 			if (!listenerRemovedEvent) listenerRemovedEvents.set(id, (listenerRemovedEvent = new Signal()));
@@ -200,7 +212,7 @@ export namespace Modding {
 	export function createDecorator<T extends readonly unknown[] = void[]>(
 		kind: "Class",
 		func: (descriptor: ClassDescriptor, config: T) => void,
-	): DecoratorCall<T, Decorator<ClassDecorator>>;
+	): Decorator<T, ClassDecorator>;
 
 	/**
 	 * Registers a method decorator.
@@ -208,7 +220,7 @@ export namespace Modding {
 	export function createDecorator<T extends readonly unknown[] = void[]>(
 		kind: "Method",
 		func: (descriptor: MethodDescriptor, config: T) => void,
-	): DecoratorCall<T, Decorator<MethodDecorator>>;
+	): Decorator<T, MethodDecorator>;
 
 	/**
 	 * Registers a property decorator.
@@ -216,7 +228,7 @@ export namespace Modding {
 	export function createDecorator<T extends readonly unknown[] = void[]>(
 		kind: "Property",
 		func: (descriptor: PropertyDescriptor, config: T) => void,
-	): DecoratorCall<T, Decorator<PropertyDecorator>>;
+	): Decorator<T, PropertyDecorator>;
 
 	/**
 	 * Registers a decorator.
@@ -224,7 +236,7 @@ export namespace Modding {
 	export function createDecorator(
 		_kind: "Method" | "Property" | "Class",
 		func: (...args: never[]) => void,
-	): ClassDecorator | MethodDecorator | PropertyDecorator {
+	): Decorator<void[], ClassDecorator | MethodDecorator | PropertyDecorator> {
 		return {
 			func: (descriptor: PropertyDescriptor, config: unknown[]) => {
 				defineDecoratorMetadata(descriptor, config);
@@ -238,28 +250,28 @@ export namespace Modding {
 	 */
 	export function createMetaDecorator<T extends readonly unknown[] = void[]>(
 		kind: "Class",
-	): DecoratorCall<T, Decorator<ClassDecorator>>;
+	): Decorator<T, ClassDecorator>;
 
 	/**
 	 * Registers a metadata method decorator.
 	 */
 	export function createMetaDecorator<T extends readonly unknown[] = void[]>(
 		kind: "Method",
-	): DecoratorCall<T, Decorator<MethodDecorator>>;
+	): Decorator<T, MethodDecorator>;
 
 	/**
 	 * Registers a metadata property decorator.
 	 */
 	export function createMetaDecorator<T extends readonly unknown[] = void[]>(
 		kind: "Property",
-	): DecoratorCall<T, Decorator<PropertyDecorator>>;
+	): Decorator<T, PropertyDecorator>;
 
 	/**
 	 * Registers a metadata decorator.
 	 */
 	export function createMetaDecorator(
 		_kind: "Method" | "Property" | "Class",
-	): ClassDecorator | MethodDecorator | PropertyDecorator {
+	): Decorator<void[], ClassDecorator | MethodDecorator | PropertyDecorator> {
 		return {
 			func: (descriptor: PropertyDescriptor, config: unknown[]) => {
 				defineDecoratorMetadata(descriptor, config);
@@ -270,7 +282,9 @@ export namespace Modding {
 	/**
 	 * Retrieves registered decorators.
 	 */
-	export function getDecorators<T extends readonly unknown[]>(id: string): AttachedDecorator<T>[] {
+	export function getDecorators<T extends AnyDecorator>(id?: string): AttachedDecorator<DecoratorParameters<T>>[] {
+		assert(id !== undefined);
+
 		const decorators = Reflect.decorators.get(id);
 		if (!decorators) return [];
 
@@ -285,16 +299,20 @@ export namespace Modding {
 		});
 	}
 
-	export function getPropertyDecorators<T extends readonly unknown[]>(
+	/**
+	 * Creates a map of every property using the specified decorator.
+	 */
+	export function getPropertyDecorators<T extends AnyDecorator>(
 		obj: object,
-		id: string,
-	): Map<string, { arguments: T }> {
-		const decorators = new Map<string, { arguments: T }>();
+		id?: string,
+	): Map<string, { arguments: DecoratorParameters<T> }> {
+		const decorators = new Map<string, { arguments: DecoratorParameters<T> }>();
+		assert(id !== undefined);
 
 		for (const prop of Reflect.getProperties(obj)) {
-			const decorator = getDecorator(id, obj, prop);
+			const decorator = getDecorator<T>(obj, prop, id);
 			if (decorator) {
-				decorators.set(prop, decorator as never);
+				decorators.set(prop, decorator);
 			}
 		}
 
@@ -304,11 +322,11 @@ export namespace Modding {
 	/**
 	 * Retrieves a decorator from an object or its properties.
 	 */
-	export function getDecorator<T extends readonly unknown[]>(
-		id: string,
+	export function getDecorator<T extends AnyDecorator>(
 		object: object,
 		property?: string,
-	): { arguments: T } | undefined {
+		id?: string,
+	): { arguments: DecoratorParameters<T> } | undefined {
 		const decorator = Reflect.getMetadata<Flamework.Decorator>(object, `flamework:decorators.${id}`, property);
 		if (!decorator) return;
 
@@ -318,16 +336,13 @@ export namespace Modding {
 	/**
 	 * Retrieves a singleton or instantiates one if it does not exist.
 	 */
-	export function resolveSingleton<T extends object>(ctor: Constructor<T>, opts?: DependencyResolutionOptions) {
+	export function resolveSingleton<T extends object>(ctor: Constructor<T>) {
 		const resolvedDependency = resolvedSingletons.get(ctor);
 		if (resolvedDependency !== undefined) return resolvedDependency;
 
 		// Flamework can resolve singletons at any arbitrary point,
 		// so we should fetch custom dependency resolution (added via decorator) through the Reflect api.
-		if (opts === undefined) {
-			opts = Reflect.getOwnMetadata<DependencyResolutionOptions>(ctor, "flamework:dependency_resolution");
-		}
-
+		const opts = Reflect.getOwnMetadata<DependencyResolutionOptions>(ctor, "flamework:dependency_resolution");
 		const dependency = createDependency(ctor, opts);
 		resolvedSingletons.set(ctor, dependency);
 
@@ -345,7 +360,9 @@ export namespace Modding {
 	 * If a function is passed, it will be called, passing the target constructor, every time that ID needs to be resolved.
 	 * Otherwise, the passed object is returned directly.
 	 */
-	export function registerDependency(id: string, dependency: DependencyRegistration) {
+	export function registerDependency<T>(dependency: DependencyRegistration, id?: string) {
+		assert(id !== undefined);
+
 		if (typeIs(dependency, "function")) {
 			dependencyResolution.set(id, dependency);
 		} else {

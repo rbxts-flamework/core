@@ -87,11 +87,11 @@ export namespace Flamework {
 	}
 
 	function isService(ctor: object) {
-		return Modding.getDecorator(Flamework.id<typeof Service>(), ctor) !== undefined;
+		return Modding.getDecorator<typeof Service>(ctor) !== undefined;
 	}
 
 	function isController(ctor: object) {
-		return Modding.getDecorator(Flamework.id<typeof Controller>(), ctor) !== undefined;
+		return Modding.getDecorator<typeof Controller>(ctor) !== undefined;
 	}
 
 	function isConstructor(obj: object): obj is Constructor {
@@ -153,7 +153,7 @@ export namespace Flamework {
 			: Flamework.id<typeof Controller>();
 
 		for (const [ctor] of Modding.getSingletons()) {
-			const decorator = Modding.getDecorator<[LoadableConfigs?]>(decoratorType, ctor);
+			const decorator = Modding.getDecorator<typeof Service | typeof Controller>(ctor, undefined, decoratorType);
 			if (!decorator) continue;
 
 			const isExternal = Reflect.getOwnMetadata<boolean>(ctor, "flamework:isExternal");
@@ -172,13 +172,13 @@ export namespace Flamework {
 
 		dependencies.sort(([, a], [, b]) => (a.loadOrder ?? 1) < (b.loadOrder ?? 1));
 
-		Modding.onListenerAdded(Flamework.id<OnTick>(), (object) => tick.add(object as OnTick));
-		Modding.onListenerAdded(Flamework.id<OnPhysics>(), (object) => physics.add(object as OnPhysics));
-		Modding.onListenerAdded(Flamework.id<OnRender>(), (object) => render.add(object as OnRender));
+		Modding.onListenerAdded<OnTick>((object) => tick.add(object));
+		Modding.onListenerAdded<OnPhysics>((object) => physics.add(object));
+		Modding.onListenerAdded<OnRender>((object) => render.add(object));
 
-		Modding.onListenerRemoved(Flamework.id<OnTick>(), (object) => tick.delete(object as OnTick));
-		Modding.onListenerRemoved(Flamework.id<OnPhysics>(), (object) => physics.delete(object as OnPhysics));
-		Modding.onListenerRemoved(Flamework.id<OnRender>(), (object) => render.delete(object as OnRender));
+		Modding.onListenerRemoved<OnTick>((object) => tick.delete(object));
+		Modding.onListenerRemoved<OnPhysics>((object) => physics.delete(object));
+		Modding.onListenerRemoved<OnRender>((object) => render.delete(object));
 
 		for (const [dependency] of dependencies) {
 			if (Flamework.implements<OnInit>(dependency)) init.push(dependency);
