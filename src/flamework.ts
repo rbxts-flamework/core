@@ -137,14 +137,12 @@ export namespace Flamework {
 			if (!isConstructor(ctor)) continue;
 
 			const isPatched = Reflect.getOwnMetadata<boolean>(ctor, "flamework:isPatched");
-			if (flameworkConfig.loadOverride && !flameworkConfig.loadOverride.includes(ctor)) {
-				if (!isPatched) continue;
-			}
+			if (flameworkConfig.loadOverride && !flameworkConfig.loadOverride.includes(ctor) && !isPatched) continue;
 
 			const isExternal = Reflect.getOwnMetadata<boolean>(ctor, "flamework:isExternal");
 			if (isExternal && !externalClasses.has(ctor as Constructor)) continue;
 
-			resolveDependency(identifier);
+			Modding.resolveSingleton(ctor);
 		}
 
 		const dependencies = new Array<[unknown, LoadableConfigs]>();
