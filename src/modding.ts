@@ -2,6 +2,7 @@ import Signal from "@rbxts/signal";
 import { Reflect } from "./reflect";
 import { Constructor } from "./types";
 import type { Flamework } from "./flamework";
+import { t } from "@rbxts/t";
 
 interface BaseDescriptor {
 	/**
@@ -439,6 +440,31 @@ export namespace Modding {
 		return resolveSingleton(dependencyCtor);
 	}
 
+	/**
+	 * @hidden
+	 * @deprecated
+	 */
+	export function macro<T>(values: string | [string, unknown][], directValue?: unknown): T {
+		if (typeIs(values, "string")) {
+			return {
+				[values]: directValue,
+			} as never;
+		}
+		const result = {} as Record<string, unknown>;
+		for (const [name, value] of values) {
+			result[name] = value;
+		}
+		return result as T;
+	}
+
+	export type Generic<T, M extends keyof GenericMetadata<T>> = Pick<GenericMetadata<T>, M> & {
+		/** @hidden */ _flamework_macro_generic: [T, { [k in M]: k }];
+	};
+
+	export type Caller<M extends keyof CallerMetadata> = Pick<CallerMetadata, M> & {
+		/** @hidden */ _flamework_macro_caller: { [k in M]: k };
+	};
+
 	function defineDecoratorMetadata(descriptor: PropertyDescriptor, config: unknown[]) {
 		const propertyKey = descriptor.isStatic ? `static:${descriptor.property}` : descriptor.property;
 		Reflect.defineMetadata(
@@ -456,6 +482,52 @@ export namespace Modding {
 		}
 
 		decoratorList.push(descriptor.id);
+	}
+
+	interface CallerMetadata {
+		/**
+		 * The starting line of the expression.
+		 */
+		line: number;
+
+		/**
+		 * The char at the start of the expression relative to the starting line.
+		 */
+		character: number;
+
+		/**
+		 * The width of the expression.
+		 * This includes the width of multiline statements.
+		 */
+		width: number;
+
+		/**
+		 * A unique identifier that can be used to identify exact callsites.
+		 * This can be used for hooks.
+		 */
+		uuid: string;
+
+		/**
+		 * The source text for the expression.
+		 */
+		text: string;
+	}
+
+	interface GenericMetadata<T> {
+		/**
+		 * The ID of the type.
+		 */
+		id: string;
+
+		/**
+		 * A string equivalent of the type.
+		 */
+		text: string;
+
+		/**
+		 * A generated guard for the type.
+		 */
+		guard: t.check<T>;
 	}
 }
 
