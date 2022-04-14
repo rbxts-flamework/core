@@ -230,6 +230,11 @@ export namespace Flamework {
 	export declare function id<T>(): string;
 
 	/**
+	 * Check if the constructor implements the specified interface.
+	 */
+	export declare function implements<T>(object: Constructor): boolean;
+
+	/**
 	 * Check if object implements the specified interface.
 	 */
 	export declare function implements<T>(object: unknown): object is T;
