@@ -340,12 +340,15 @@ export namespace Modding {
 	export function resolveSingleton<T extends object>(ctor: Constructor<T>) {
 		const resolvedDependency = resolvedSingletons.get(ctor);
 		if (resolvedDependency !== undefined) return resolvedDependency;
+		if (loadingList.includes(ctor)) throw `Circular dependency detected ${loadingList.join(" <=> ")} <=> ${ctor}`;
 
+		loadingList.push(ctor);
 		// Flamework can resolve singletons at any arbitrary point,
 		// so we should fetch custom dependency resolution (added via decorator) through the Reflect api.
 		const opts = Reflect.getOwnMetadata<DependencyResolutionOptions>(ctor, "flamework:dependency_resolution");
 		const dependency = createDependency(ctor, opts);
 		resolvedSingletons.set(ctor, dependency);
+		loadingList.pop();
 
 		return dependency;
 	}
@@ -372,27 +375,44 @@ export namespace Modding {
 	}
 
 	/**
-	 * Instantiates this class using dependency injection and registers it as a listener.
+	 * Instantiates this class using dependency injection.
 	 */
 	export function createDependency<T extends object>(
 		ctor: Constructor<T>,
 		options: DependencyResolutionOptions = {},
 	) {
-		if (loadingList.includes(ctor)) throw `Circular dependency detected ${loadingList.join(" <=> ")} <=> ${ctor}`;
-		loadingList.push(ctor);
+		const [obj, construct] = createDeferredDependency(ctor, options);
+		construct();
+		return obj;
+	}
 
-		const dependencies = Reflect.getMetadata<string[]>(ctor, "flamework:parameters");
-		const constructorDependencies: never[] = [];
-		if (dependencies) {
-			for (const [index, dependencyId] of pairs(dependencies)) {
-				constructorDependencies[index - 1] = resolveDependency(ctor, dependencyId, index - 1, options) as never;
-			}
-		}
+	/**
+	 * Creates an object for this class and returns a deferred constructor.
+	 */
+	export function createDeferredDependency<T extends object>(
+		ctor: Constructor<T>,
+		options: DependencyResolutionOptions = {},
+	) {
+		const [obj, construct] = getDeferredConstructor(ctor);
 
-		const dependency = new ctor(...constructorDependencies);
-		Modding.addListener(dependency);
-		loadingList.pop();
-		return dependency;
+		return [
+			obj as T,
+			() => {
+				const dependencies = Reflect.getMetadata<string[]>(ctor, "flamework:parameters");
+				const constructorDependencies: never[] = [];
+				if (dependencies) {
+					for (const [index, dependencyId] of pairs(dependencies)) {
+						constructorDependencies[index - 1] = resolveDependency(
+							ctor,
+							dependencyId,
+							index - 1,
+							options,
+						) as never;
+					}
+				}
+				construct(...constructorDependencies);
+			},
+		] as const;
 	}
 
 	/**
@@ -547,4 +567,16 @@ interface DependencyResolutionOptions {
 
 function isConstructor(obj: object): obj is Constructor {
 	return "new" in obj && "constructor" in obj;
+}
+
+function getDeferredConstructor<T extends Constructor<unknown>>(ctor: T) {
+	const obj = setmetatable({}, ctor as never) as InstanceType<T>;
+
+	return [
+		obj,
+		(...args: ConstructorParameters<T>) => {
+			const result = (obj as { "constructor"(...args: unknown[]): unknown }).constructor(...args);
+			assert(result === undefined || result === obj, `Deferred constructors are not allowed to return values.`);
+		},
+	] as const;
 }
