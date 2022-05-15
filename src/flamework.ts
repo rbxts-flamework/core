@@ -184,10 +184,12 @@ export namespace Flamework {
 		}
 
 		for (const dependency of init) {
+			debug.setmemorycategory(Reflect.getMetadata<string>(dependency, "identifier")!);
 			const initResult = dependency.onInit();
 			if (Promise.is(initResult)) {
 				initResult.await();
 			}
+			debug.resetmemorycategory();
 		}
 
 		isInitialized = true;
@@ -213,7 +215,10 @@ export namespace Flamework {
 		}
 
 		for (const dependency of start) {
-			task.spawn(() => dependency.onStart());
+			task.spawn(() => {
+				debug.setmemorycategory(Reflect.getMetadata<string>(dependency, "identifier")!);
+				dependency.onStart();
+			});
 		}
 
 		return dependencies;
