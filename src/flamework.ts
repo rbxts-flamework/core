@@ -1,25 +1,10 @@
-import Object from "@rbxts/object-utils";
 import { Players, RunService } from "@rbxts/services";
 import { t } from "@rbxts/t";
+import { Modding } from "./modding";
 import { Reflect } from "./reflect";
 import { Constructor } from "./types";
 
 export namespace Flamework {
-	export type Config =
-		| (ComponentConfig & { type: "Component" })
-		| (ServiceConfig & { type: "Service" })
-		| (ControllerConfig & { type: "Controller" })
-		| (ArbitraryConfig & { type: "Arbitrary" });
-
-	export type ConfigType<T extends keyof ConfigTypes> = _<Extract<Config, { type: T }>>;
-
-	export interface ConfigTypes {
-		Component: ComponentConfig;
-		Service: ServiceConfig;
-		Controller: ControllerConfig;
-		Arbitrary: ArbitraryConfig;
-	}
-
 	export interface ComponentConfig {
 		tag?: string;
 		attributes?: { [key: string]: t.check<unknown> };
@@ -33,7 +18,7 @@ export namespace Flamework {
 	export interface ControllerConfig {
 		loadOrder?: number;
 	}
-	export interface ArbitraryConfig {
+	export interface Decorator {
 		arguments: unknown[];
 	}
 	export interface FlameworkConfig {
@@ -46,44 +31,13 @@ export namespace Flamework {
 	};
 	export let isInitialized = false;
 
-	const resolvedDependencies = new Map<string, unknown>();
-	const loadingList = new Array<Constructor>();
-
-	/** @hidden */
-	export function createDependency(ctor: Constructor) {
-		if (loadingList.includes(ctor)) throw `Circular dependency detected ${loadingList.join(" <=> ")} <=> ${ctor}`;
-		loadingList.push(ctor);
-
-		const dependencies = Reflect.getMetadata<string[]>(ctor, "flamework:dependencies");
-
-		const constructorDependencies: never[] = [];
-		if (dependencies) {
-			for (const [index, dependencyId] of pairs(dependencies)) {
-				const dependency = resolveDependency(dependencyId);
-				constructorDependencies[index - 1] = dependency as never;
-			}
-		}
-
-		const dependency = new ctor(...constructorDependencies);
-		loadingList.pop();
-
-		return dependency;
-	}
-
 	/** @hidden */
 	export function resolveDependency(id: string) {
-		const resolvedDependency = resolvedDependencies.get(id);
-		if (resolvedDependency !== undefined) return resolvedDependency;
-
 		const ctor = Reflect.idToObj.get(id);
 		if (ctor === undefined) throw `Dependency ${id} could not be found.`;
+		if (!isConstructor(ctor)) throw `Dependency ${id} did not resolve to a constructor.`;
 
-		assert(isConstructor(ctor));
-
-		const dependency = createDependency(ctor);
-		resolvedDependencies.set(id, dependency);
-
-		return dependency;
+		return Modding.resolveSingleton(ctor);
 	}
 
 	/** @hidden */
@@ -133,29 +87,15 @@ export namespace Flamework {
 	}
 
 	function isService(ctor: object) {
-		return Reflect.hasOwnMetadata(ctor, `flamework:decorators.${Flamework.id<typeof Service>()}`);
+		return Modding.getDecorator<typeof Service>(ctor) !== undefined;
 	}
 
 	function isController(ctor: object) {
-		return Reflect.hasOwnMetadata(ctor, `flamework:decorators.${Flamework.id<typeof Controller>()}`);
+		return Modding.getDecorator<typeof Controller>(ctor) !== undefined;
 	}
 
 	function isConstructor(obj: object): obj is Constructor {
 		return "new" in obj && "constructor" in obj;
-	}
-
-	function getDecorator<T extends Exclude<keyof ConfigTypes, "Arbitrary">>(ctor: object, configType: T) {
-		const decorators = Reflect.getMetadatas<string[]>(ctor, "flamework:decorators");
-		if (!decorators) return undefined;
-
-		for (const decoratorIds of decorators) {
-			for (const decoratorId of decoratorIds) {
-				const config = Reflect.getMetadata<Config>(ctor, `flamework:decorators.${decoratorId}`);
-				if (config?.type === configType) {
-					return config as ConfigTypes[T] & { type: T };
-				}
-			}
-		}
 	}
 
 	const externalClasses = new Set<Constructor>();
@@ -167,7 +107,7 @@ export namespace Flamework {
 		externalClasses.add(ctor);
 	}
 
-	type LoadableConfigs = Extract<Config, { type: "Service" | "Controller" }>;
+	type LoadableConfigs = ServiceConfig | ControllerConfig;
 	let hasFlameworkIgnited = false;
 
 	/**
@@ -197,49 +137,50 @@ export namespace Flamework {
 			if (!isConstructor(ctor)) continue;
 
 			const isPatched = Reflect.getOwnMetadata<boolean>(ctor, "flamework:isPatched");
-			if (flameworkConfig.loadOverride && !flameworkConfig.loadOverride.includes(ctor)) {
-				if (!isPatched) continue;
-			}
+			if (flameworkConfig.loadOverride && !flameworkConfig.loadOverride.includes(ctor) && !isPatched) continue;
 
 			const isExternal = Reflect.getOwnMetadata<boolean>(ctor, "flamework:isExternal");
 			if (isExternal && !externalClasses.has(ctor as Constructor)) continue;
 
-			resolveDependency(identifier);
+			Modding.resolveSingleton(ctor);
 		}
 
 		const dependencies = new Array<[unknown, LoadableConfigs]>();
-		const decoratorType = RunService.IsServer() ? "Service" : "Controller";
+		const decoratorType = RunService.IsServer()
+			? Flamework.id<typeof Service>()
+			: Flamework.id<typeof Controller>();
 
-		for (const [id] of resolvedDependencies) {
-			const ctor = Reflect.idToObj.get(id);
-			if (ctor === undefined) throw `Could not find constructor for ${id}`;
-
-			const decorator = getDecorator(ctor, decoratorType);
+		for (const [ctor] of Modding.getSingletons()) {
+			const decorator = Modding.getDecorator<typeof Service | typeof Controller>(ctor, undefined, decoratorType);
 			if (!decorator) continue;
 
 			const isExternal = Reflect.getOwnMetadata<boolean>(ctor, "flamework:isExternal");
 			if (isExternal && !externalClasses.has(ctor as Constructor)) continue;
 
-			const dependency = resolveDependency(id);
-			dependencies.push([dependency, decorator]);
+			const dependency = Modding.resolveSingleton(ctor);
+			dependencies.push([dependency, decorator.arguments[0] || {}]);
 		}
 
 		const start = new Array<OnStart>();
 		const init = new Array<OnInit>();
 
-		const tick = new Array<OnTick>();
-		const render = new Array<OnRender>();
-		const physics = new Array<OnPhysics>();
+		const tick = new Set<OnTick>();
+		const render = new Set<OnRender>();
+		const physics = new Set<OnPhysics>();
 
 		dependencies.sort(([, a], [, b]) => (a.loadOrder ?? 1) < (b.loadOrder ?? 1));
+
+		Modding.onListenerAdded<OnTick>((object) => tick.add(object));
+		Modding.onListenerAdded<OnPhysics>((object) => physics.add(object));
+		Modding.onListenerAdded<OnRender>((object) => render.add(object));
+
+		Modding.onListenerRemoved<OnTick>((object) => tick.delete(object));
+		Modding.onListenerRemoved<OnPhysics>((object) => physics.delete(object));
+		Modding.onListenerRemoved<OnRender>((object) => render.delete(object));
 
 		for (const [dependency] of dependencies) {
 			if (Flamework.implements<OnInit>(dependency)) init.push(dependency);
 			if (Flamework.implements<OnStart>(dependency)) start.push(dependency);
-
-			if (Flamework.implements<OnTick>(dependency)) tick.push(dependency);
-			if (Flamework.implements<OnPhysics>(dependency)) physics.push(dependency);
-			if (Flamework.implements<OnRender>(dependency)) render.push(dependency);
 		}
 
 		for (const dependency of init) {
@@ -289,6 +230,11 @@ export namespace Flamework {
 	export declare function id<T>(): string;
 
 	/**
+	 * Check if the constructor implements the specified interface.
+	 */
+	export declare function implements<T>(object: Constructor): boolean;
+
+	/**
 	 * Check if object implements the specified interface.
 	 */
 	export declare function implements<T>(object: unknown): object is T;
@@ -313,10 +259,10 @@ export namespace Flamework {
 	export namespace Testing {
 		export function patchDependency<T>(patchedClass: Constructor<unknown>, id?: string) {
 			if (id === undefined) throw `Patching failed, no ID`;
-			if (resolvedDependencies.has(id)) throw `${id} has already been resolved, continuing is unsafe`;
 
 			const idCtor = Reflect.idToObj.get(id) as Constructor;
 			if (idCtor === undefined) throw `Dependency ${id} was not found and cannot be patched.`;
+			if (Modding.getSingletons().has(idCtor)) throw `${id} has already been resolved, continuing is unsafe`;
 
 			const objMetadata = Reflect.metadata.get(idCtor);
 			if (!objMetadata) throw `Dependency ${id} has no existing metadata.`;
@@ -331,9 +277,6 @@ export namespace Flamework {
 	}
 }
 
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-type ClassDecorator = (ctor: any) => any;
-
 export declare function Dependency<T>(): T;
 export declare function Dependency<T>(ctor: Constructor<T>): T;
 export declare function Dependency<T>(ctor?: Constructor<T>): T;
@@ -342,15 +285,17 @@ export declare function Dependency<T>(ctor?: Constructor<T>): T;
  * Register a class as a Service.
  *
  * @server
+ * @metadata flamework:implements flamework:parameters
  */
-export declare function Service(opts?: Flamework.ServiceConfig): ClassDecorator;
+export const Service = Modding.createMetaDecorator<[opts?: Flamework.ServiceConfig]>("Class");
 
 /**
  * Register a class as a Controller.
  *
  * @client
+ * @metadata flamework:implements flamework:parameters
  */
-export declare function Controller(opts?: Flamework.ControllerConfig): ClassDecorator;
+export const Controller = Modding.createMetaDecorator<[opts?: Flamework.ControllerConfig]>("Class");
 
 /**
  * Marks this class as an external class.
@@ -360,7 +305,9 @@ export declare function Controller(opts?: Flamework.ControllerConfig): ClassDeco
  * inside of a package will make the class load as long as
  * it has been loaded.
  */
-export declare function External(): ClassDecorator;
+export const External = Modding.createDecorator("Class", (descriptor) => {
+	Reflect.defineMetadata(descriptor.object, `flamework:isExternal`, true);
+});
 
 /**
  * Hook into the OnInit lifecycle event.

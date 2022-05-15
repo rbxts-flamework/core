@@ -13,6 +13,7 @@
 		"resolveJsonModule": true,
 		"strict": true,
 		"target": "ESNext",
+		"stripInternal": true,
 		"typeRoots": ["node_modules/@rbxts", "node_modules/@flamework"],
 
 		// configurable

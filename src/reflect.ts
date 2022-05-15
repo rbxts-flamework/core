@@ -1,4 +1,5 @@
-import Object from "@rbxts/object-utils";
+import type { ClassDescriptor, MethodDescriptor, PropertyDescriptor } from "./modding";
+import { Constructor } from "./types";
 
 /**
  * Reflection/metadata API
@@ -6,6 +7,7 @@ import Object from "@rbxts/object-utils";
 export namespace Reflect {
 	// object -> property -> key -> value
 	export const metadata = new WeakMap<object, Map<string | typeof NO_PROP_MARKER, Map<string, unknown>>>();
+	export const decorators = new Map<string, Array<object>>();
 	export const idToObj = new Map<string, object>();
 	export const objToId = new Map<object, string>();
 
@@ -101,6 +103,22 @@ export namespace Reflect {
 	}
 
 	/**
+	 * Retrieves all properties (that contain metadata) on this object.
+	 */
+	export function getOwnProperties(obj: object) {
+		const properties = metadata.get(obj);
+		if (!properties) return [];
+
+		const keys = new Array<string>();
+		for (const [key] of properties) {
+			if (key !== NO_PROP_MARKER) {
+				keys.push(key as string);
+			}
+		}
+		return keys;
+	}
+
+	/**
 	 * Retrieve all values for the specified key from the object and its parents.
 	 * Type parameter is an assertion.
 	 */
@@ -165,5 +183,47 @@ export namespace Reflect {
 		}
 
 		return [...keys];
+	}
+
+	/**
+	 * Retrieves all properties (that contain metadata) on this object and its parents.
+	 */
+	export function getProperties(obj: object) {
+		const keys = new Set<string>(getOwnProperties(obj));
+
+		const parent = getParentConstructor(obj);
+		if (parent) {
+			getProperties(parent).forEach((key) => keys.add(key));
+		}
+
+		return [...keys];
+	}
+
+	/** @hidden */
+	export function decorate(
+		object: Constructor,
+		id: string,
+		decoration: {
+			func: (descriptor: ClassDescriptor | MethodDescriptor | PropertyDescriptor, config: unknown[]) => void;
+		},
+		args: unknown[],
+		property?: string,
+		isStatic = false,
+	) {
+		const descriptor = {
+			id,
+			isStatic,
+			object,
+			property,
+		};
+
+		if (property === undefined) {
+			let decoratedObjects = decorators.get(id);
+			if (!decoratedObjects) decorators.set(id, (decoratedObjects = []));
+
+			decoratedObjects.push(object);
+		}
+
+		decoration.func(descriptor, args);
 	}
 }
