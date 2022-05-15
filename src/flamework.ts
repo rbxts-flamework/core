@@ -319,6 +319,8 @@ export interface OnInit {
 	 *
 	 * It's safe to load dependencies here, but it is not safe to use them.
 	 * Yielding or returning a promise will delay initialization of other dependencies.
+	 *
+	 * @hideinherited
 	 */
 	onInit(): void | Promise<void>;
 }
@@ -330,6 +332,8 @@ export interface OnStart {
 	/**
 	 * This function will be called after the game has been initialized.
 	 * This function will be called asynchronously.
+	 *
+	 * @hideinherited
 	 */
 	onStart(): void;
 }
@@ -341,6 +345,8 @@ export interface OnStart {
 export interface OnTick {
 	/**
 	 * Called every frame, after physics.
+	 *
+	 * @hideinherited
 	 */
 	onTick(dt: number): void;
 }
@@ -352,6 +358,8 @@ export interface OnTick {
 export interface OnPhysics {
 	/**
 	 * Called every frame, before physics.
+	 *
+	 * @hideinherited
 	 */
 	onPhysics(dt: number, time: number): void;
 }
@@ -366,6 +374,8 @@ export interface OnRender {
 	/**
 	 * Called every frame, before rendering.
 	 * Only available for controllers.
+	 *
+	 * @hideinherited
 	 */
 	onRender(dt: number): void;
 }
