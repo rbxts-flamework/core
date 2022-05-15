@@ -350,6 +350,7 @@ export namespace Modding {
 		resolvedSingletons.set(ctor, dependency);
 		loadingList.pop();
 
+		addListener(dependency);
 		return dependency;
 	}
 
