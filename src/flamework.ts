@@ -196,20 +196,29 @@ export namespace Flamework {
 
 		RunService.Heartbeat.Connect((dt) => {
 			for (const dependency of tick) {
-				task.spawn(() => dependency.onTick(dt));
+				task.spawn(() => {
+					debug.setmemorycategory(Reflect.getMetadata<string>(dependency, "identifier")!);
+					dependency.onTick(dt);
+				});
 			}
 		});
 
 		RunService.Stepped.Connect((time, dt) => {
 			for (const dependency of physics) {
-				task.spawn(() => dependency.onPhysics(dt, time));
+				task.spawn(() => {
+					debug.setmemorycategory(Reflect.getMetadata<string>(dependency, "identifier")!);
+					dependency.onPhysics(dt, time);
+				});
 			}
 		});
 
 		if (RunService.IsClient()) {
 			RunService.RenderStepped.Connect((dt) => {
 				for (const dependency of render) {
-					task.spawn(() => dependency.onRender(dt));
+					task.spawn(() => {
+						debug.setmemorycategory(Reflect.getMetadata<string>(dependency, "identifier")!);
+						dependency.onRender(dt);
+					});
 				}
 			});
 		}
