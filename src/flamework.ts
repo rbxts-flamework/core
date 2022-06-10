@@ -1,3 +1,4 @@
+import Object from "@rbxts/object-utils";
 import { Players, RunService } from "@rbxts/services";
 import { t } from "@rbxts/t";
 import { Modding } from "./modding";
@@ -98,6 +99,11 @@ export namespace Flamework {
 		return "new" in obj && "constructor" in obj;
 	}
 
+	function getIdentifier(obj: object, suffix = ""): string {
+		const baseIdentifier = Reflect.getMetadata<string>(obj, "identifier") ?? "UnidentifiedFlameworkListener";
+		return baseIdentifier + suffix;
+	}
+
 	const externalClasses = new Set<Constructor>();
 
 	/**
@@ -170,24 +176,9 @@ export namespace Flamework {
 
 		dependencies.sort(([, a], [, b]) => (a.loadOrder ?? 1) < (b.loadOrder ?? 1));
 
-		Modding.onListenerAdded<OnTick>((object) =>
-			tick.set(
-				object,
-				Reflect.getMetadata<string>(object, "identifier") ?? "UnidentifiedFlameworkListener@onTick",
-			),
-		);
-		Modding.onListenerAdded<OnPhysics>((object) =>
-			physics.set(
-				object,
-				Reflect.getMetadata<string>(object, "identifier") ?? "UnidentifiedFlameworkListener@onPhysics",
-			),
-		);
-		Modding.onListenerAdded<OnRender>((object) =>
-			render.set(
-				object,
-				Reflect.getMetadata<string>(object, "identifier") ?? "UnidentifiedFlameworkListener@onRender",
-			),
-		);
+		Modding.onListenerAdded<OnTick>((object) => tick.set(object, getIdentifier(object, "@OnTick")));
+		Modding.onListenerAdded<OnPhysics>((object) => physics.set(object, getIdentifier(object, "@OnPhysics")));
+		Modding.onListenerAdded<OnRender>((object) => render.set(object, getIdentifier(object, "@OnRender")));
 
 		Modding.onListenerRemoved<OnTick>((object) => tick.delete(object));
 		Modding.onListenerRemoved<OnPhysics>((object) => physics.delete(object));
@@ -195,10 +186,10 @@ export namespace Flamework {
 
 		for (const [dependency] of dependencies) {
 			if (Flamework.implements<OnInit>(dependency)) {
-				init.set(dependency, Reflect.getMetadata<string>(dependency as object, "identifier")!);
+				init.set(dependency, getIdentifier(dependency));
 			}
 			if (Flamework.implements<OnStart>(dependency)) {
-				start.set(dependency, Reflect.getMetadata<string>(dependency as object, "identifier")!);
+				start.set(dependency, getIdentifier(dependency));
 			}
 		}
 
