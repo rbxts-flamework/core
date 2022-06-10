@@ -161,16 +161,14 @@ export namespace Flamework {
 			dependencies.push([dependency, decorator.arguments[0] || {}]);
 		}
 
-		const start = new Array<OnStart>();
-		const init = new Array<OnInit>();
+		const start = new Map<OnStart, string>();
+		const init = new Map<OnInit, string>();
 
 		const tick = new Map<OnTick, string>();
 		const render = new Map<OnRender, string>();
 		const physics = new Map<OnPhysics, string>();
 
 		dependencies.sort(([, a], [, b]) => (a.loadOrder ?? 1) < (b.loadOrder ?? 1));
-
-		const identifierMap: Map<unknown, string> = new Map();
 
 		Modding.onListenerAdded<OnTick>((object) =>
 			tick.set(
@@ -196,13 +194,16 @@ export namespace Flamework {
 		Modding.onListenerRemoved<OnRender>((object) => render.delete(object));
 
 		for (const [dependency] of dependencies) {
-			if (Flamework.implements<OnInit>(dependency)) init.push(dependency);
-			if (Flamework.implements<OnStart>(dependency)) start.push(dependency);
-			identifierMap.set(dependency, Reflect.getMetadata<string>(dependency as object, "identifier")!);
+			if (Flamework.implements<OnInit>(dependency)) {
+				init.set(dependency, Reflect.getMetadata<string>(dependency as object, "identifier")!);
+			}
+			if (Flamework.implements<OnStart>(dependency)) {
+				start.set(dependency, Reflect.getMetadata<string>(dependency as object, "identifier")!);
+			}
 		}
 
-		for (const dependency of init) {
-			debug.setmemorycategory(identifierMap.get(dependency)!);
+		for (const [dependency, indentifier] of init) {
+			debug.setmemorycategory(indentifier);
 			const initResult = dependency.onInit();
 			if (Promise.is(initResult)) {
 				initResult.await();
@@ -241,9 +242,9 @@ export namespace Flamework {
 			});
 		}
 
-		for (const dependency of start) {
+		for (const [dependency, indentifier] of start) {
 			task.spawn(() => {
-				debug.setmemorycategory(identifierMap.get(dependency)!);
+				debug.setmemorycategory(indentifier);
 				dependency.onStart();
 			});
 		}
