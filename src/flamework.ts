@@ -1,4 +1,3 @@
-import Object from "@rbxts/object-utils";
 import { Players, RunService } from "@rbxts/services";
 import { t } from "@rbxts/t";
 import { Modding } from "./modding";
