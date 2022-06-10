@@ -178,13 +178,16 @@ export namespace Flamework {
 		Modding.onListenerRemoved<OnPhysics>((object) => physics.delete(object));
 		Modding.onListenerRemoved<OnRender>((object) => render.delete(object));
 
+		const identifierMap: Map<unknown, string> = new Map();
+
 		for (const [dependency] of dependencies) {
 			if (Flamework.implements<OnInit>(dependency)) init.push(dependency);
 			if (Flamework.implements<OnStart>(dependency)) start.push(dependency);
+			identifierMap.set(dependency, Reflect.getMetadata<string>(dependency as object, "identifier")!);
 		}
 
 		for (const dependency of init) {
-			debug.setmemorycategory(Reflect.getMetadata<string>(dependency, "identifier")!);
+			debug.setmemorycategory(identifierMap.get(dependency)!);
 			const initResult = dependency.onInit();
 			if (Promise.is(initResult)) {
 				initResult.await();
@@ -197,7 +200,7 @@ export namespace Flamework {
 		RunService.Heartbeat.Connect((dt) => {
 			for (const dependency of tick) {
 				task.spawn(() => {
-					debug.setmemorycategory(Reflect.getMetadata<string>(dependency, "identifier")!);
+					debug.setmemorycategory(identifierMap.get(dependency)!);
 					dependency.onTick(dt);
 				});
 			}
@@ -206,7 +209,7 @@ export namespace Flamework {
 		RunService.Stepped.Connect((time, dt) => {
 			for (const dependency of physics) {
 				task.spawn(() => {
-					debug.setmemorycategory(Reflect.getMetadata<string>(dependency, "identifier")!);
+					debug.setmemorycategory(identifierMap.get(dependency)!);
 					dependency.onPhysics(dt, time);
 				});
 			}
@@ -216,7 +219,7 @@ export namespace Flamework {
 			RunService.RenderStepped.Connect((dt) => {
 				for (const dependency of render) {
 					task.spawn(() => {
-						debug.setmemorycategory(Reflect.getMetadata<string>(dependency, "identifier")!);
+						debug.setmemorycategory(identifierMap.get(dependency)!);
 						dependency.onRender(dt);
 					});
 				}
@@ -225,7 +228,7 @@ export namespace Flamework {
 
 		for (const dependency of start) {
 			task.spawn(() => {
-				debug.setmemorycategory(Reflect.getMetadata<string>(dependency, "identifier")!);
+				debug.setmemorycategory(identifierMap.get(dependency)!);
 				dependency.onStart();
 			});
 		}
