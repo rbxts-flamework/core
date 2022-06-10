@@ -164,21 +164,36 @@ export namespace Flamework {
 		const start = new Array<OnStart>();
 		const init = new Array<OnInit>();
 
-		const tick = new Set<OnTick>();
-		const render = new Set<OnRender>();
-		const physics = new Set<OnPhysics>();
+		const tick = new Map<OnTick, string>();
+		const render = new Map<OnRender, string>();
+		const physics = new Map<OnPhysics, string>();
 
 		dependencies.sort(([, a], [, b]) => (a.loadOrder ?? 1) < (b.loadOrder ?? 1));
 
-		Modding.onListenerAdded<OnTick>((object) => tick.add(object));
-		Modding.onListenerAdded<OnPhysics>((object) => physics.add(object));
-		Modding.onListenerAdded<OnRender>((object) => render.add(object));
+		const identifierMap: Map<unknown, string> = new Map();
+
+		Modding.onListenerAdded<OnTick>((object) =>
+			tick.set(
+				object,
+				Reflect.getMetadata<string>(object, "identifier") ?? "UnidentifiedFlameworkListener@onTick",
+			),
+		);
+		Modding.onListenerAdded<OnPhysics>((object) =>
+			physics.set(
+				object,
+				Reflect.getMetadata<string>(object, "identifier") ?? "UnidentifiedFlameworkListener@onPhysics",
+			),
+		);
+		Modding.onListenerAdded<OnRender>((object) =>
+			render.set(
+				object,
+				Reflect.getMetadata<string>(object, "identifier") ?? "UnidentifiedFlameworkListener@onRender",
+			),
+		);
 
 		Modding.onListenerRemoved<OnTick>((object) => tick.delete(object));
 		Modding.onListenerRemoved<OnPhysics>((object) => physics.delete(object));
 		Modding.onListenerRemoved<OnRender>((object) => render.delete(object));
-
-		const identifierMap: Map<unknown, string> = new Map();
 
 		for (const [dependency] of dependencies) {
 			if (Flamework.implements<OnInit>(dependency)) init.push(dependency);
@@ -198,18 +213,18 @@ export namespace Flamework {
 		isInitialized = true;
 
 		RunService.Heartbeat.Connect((dt) => {
-			for (const dependency of tick) {
+			for (const [dependency, identifier] of tick) {
 				task.spawn(() => {
-					debug.setmemorycategory(identifierMap.get(dependency)!);
+					debug.setmemorycategory(identifier);
 					dependency.onTick(dt);
 				});
 			}
 		});
 
 		RunService.Stepped.Connect((time, dt) => {
-			for (const dependency of physics) {
+			for (const [dependency, identifier] of physics) {
 				task.spawn(() => {
-					debug.setmemorycategory(identifierMap.get(dependency)!);
+					debug.setmemorycategory(identifier);
 					dependency.onPhysics(dt, time);
 				});
 			}
@@ -217,9 +232,9 @@ export namespace Flamework {
 
 		if (RunService.IsClient()) {
 			RunService.RenderStepped.Connect((dt) => {
-				for (const dependency of render) {
+				for (const [dependency, identifier] of render) {
 					task.spawn(() => {
-						debug.setmemorycategory(identifierMap.get(dependency)!);
+						debug.setmemorycategory(identifier);
 						dependency.onRender(dt);
 					});
 				}
