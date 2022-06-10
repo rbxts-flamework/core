@@ -98,6 +98,11 @@ export namespace Flamework {
 		return "new" in obj && "constructor" in obj;
 	}
 
+	function getIdentifier(obj: object, suffix = ""): string {
+		const baseIdentifier = Reflect.getMetadata<string>(obj, "identifier") ?? "UnidentifiedFlameworkListener";
+		return baseIdentifier + suffix;
+	}
+
 	const externalClasses = new Set<Constructor>();
 
 	/**
@@ -161,30 +166,30 @@ export namespace Flamework {
 			dependencies.push([dependency, decorator.arguments[0] || {}]);
 		}
 
-		const start = new Array<OnStart>();
-		const init = new Array<OnInit>();
+		const start = new Map<OnStart, string>();
+		const init = new Map<OnInit, string>();
 
-		const tick = new Set<OnTick>();
-		const render = new Set<OnRender>();
-		const physics = new Set<OnPhysics>();
+		const tick = new Map<OnTick, string>();
+		const render = new Map<OnRender, string>();
+		const physics = new Map<OnPhysics, string>();
 
 		dependencies.sort(([, a], [, b]) => (a.loadOrder ?? 1) < (b.loadOrder ?? 1));
 
-		Modding.onListenerAdded<OnTick>((object) => tick.add(object));
-		Modding.onListenerAdded<OnPhysics>((object) => physics.add(object));
-		Modding.onListenerAdded<OnRender>((object) => render.add(object));
+		Modding.onListenerAdded<OnTick>((object) => tick.set(object, getIdentifier(object, "@OnTick")));
+		Modding.onListenerAdded<OnPhysics>((object) => physics.set(object, getIdentifier(object, "@OnPhysics")));
+		Modding.onListenerAdded<OnRender>((object) => render.set(object, getIdentifier(object, "@OnRender")));
 
 		Modding.onListenerRemoved<OnTick>((object) => tick.delete(object));
 		Modding.onListenerRemoved<OnPhysics>((object) => physics.delete(object));
 		Modding.onListenerRemoved<OnRender>((object) => render.delete(object));
 
 		for (const [dependency] of dependencies) {
-			if (Flamework.implements<OnInit>(dependency)) init.push(dependency);
-			if (Flamework.implements<OnStart>(dependency)) start.push(dependency);
+			if (Flamework.implements<OnInit>(dependency)) init.set(dependency, getIdentifier(dependency));
+			if (Flamework.implements<OnStart>(dependency)) start.set(dependency, getIdentifier(dependency));
 		}
 
-		for (const dependency of init) {
-			debug.setmemorycategory(Reflect.getMetadata<string>(dependency, "identifier")!);
+		for (const [dependency, indentifier] of init) {
+			debug.setmemorycategory(indentifier);
 			const initResult = dependency.onInit();
 			if (Promise.is(initResult)) {
 				initResult.await();
@@ -195,28 +200,37 @@ export namespace Flamework {
 		isInitialized = true;
 
 		RunService.Heartbeat.Connect((dt) => {
-			for (const dependency of tick) {
-				task.spawn(() => dependency.onTick(dt));
+			for (const [dependency, identifier] of tick) {
+				task.spawn(() => {
+					debug.setmemorycategory(identifier);
+					dependency.onTick(dt);
+				});
 			}
 		});
 
 		RunService.Stepped.Connect((time, dt) => {
-			for (const dependency of physics) {
-				task.spawn(() => dependency.onPhysics(dt, time));
+			for (const [dependency, identifier] of physics) {
+				task.spawn(() => {
+					debug.setmemorycategory(identifier);
+					dependency.onPhysics(dt, time);
+				});
 			}
 		});
 
 		if (RunService.IsClient()) {
 			RunService.RenderStepped.Connect((dt) => {
-				for (const dependency of render) {
-					task.spawn(() => dependency.onRender(dt));
+				for (const [dependency, identifier] of render) {
+					task.spawn(() => {
+						debug.setmemorycategory(identifier);
+						dependency.onRender(dt);
+					});
 				}
 			});
 		}
 
-		for (const dependency of start) {
+		for (const [dependency, indentifier] of start) {
 			task.spawn(() => {
-				debug.setmemorycategory(Reflect.getMetadata<string>(dependency, "identifier")!);
+				debug.setmemorycategory(indentifier);
 				dependency.onStart();
 			});
 		}
