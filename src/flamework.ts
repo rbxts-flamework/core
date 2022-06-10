@@ -185,12 +185,8 @@ export namespace Flamework {
 		Modding.onListenerRemoved<OnRender>((object) => render.delete(object));
 
 		for (const [dependency] of dependencies) {
-			if (Flamework.implements<OnInit>(dependency)) {
-				init.set(dependency, getIdentifier(dependency));
-			}
-			if (Flamework.implements<OnStart>(dependency)) {
-				start.set(dependency, getIdentifier(dependency));
-			}
+			if (Flamework.implements<OnInit>(dependency)) init.set(dependency, getIdentifier(dependency));
+			if (Flamework.implements<OnStart>(dependency)) start.set(dependency, getIdentifier(dependency));
 		}
 
 		for (const [dependency, indentifier] of init) {
