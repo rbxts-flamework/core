@@ -418,8 +418,9 @@ export namespace Modding {
 
 	/**
 	 * Dependency resolution logic.
+	 * @internal
 	 */
-	function resolveDependency(
+	export function resolveDependency(
 		ctor: Constructor,
 		dependencyId: string,
 		index: number,
@@ -435,6 +436,11 @@ export namespace Modding {
 		const resolution = dependencyResolution.get(dependencyId);
 		if (resolution !== undefined) {
 			return resolution(ctor);
+		}
+
+		const dependencyCtor = Reflect.idToObj.get(dependencyId);
+		if (dependencyCtor && isConstructor(dependencyCtor)) {
+			return resolveSingleton(dependencyCtor);
 		}
 
 		if (dependencyId.sub(1, 2) === "$p") {
@@ -453,12 +459,7 @@ export namespace Modding {
 			throw `Unexpected primitive dependency '${dependencyId}' while constructing ${ctor}`;
 		}
 
-		const dependencyCtor = Reflect.idToObj.get(dependencyId);
-		if (!dependencyCtor || !isConstructor(dependencyCtor)) {
-			throw `Could not find constructor for ${dependencyId} while constructing ${ctor}`;
-		}
-
-		return resolveSingleton(dependencyCtor);
+		throw `Could not find constructor for ${dependencyId} while constructing ${ctor}`;
 	}
 
 	/**

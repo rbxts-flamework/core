@@ -33,11 +33,7 @@ export namespace Flamework {
 
 	/** @hidden */
 	export function resolveDependency(id: string) {
-		const ctor = Reflect.idToObj.get(id);
-		if (ctor === undefined) throw `Dependency ${id} could not be found.`;
-		if (!isConstructor(ctor)) throw `Dependency ${id} did not resolve to a constructor.`;
-
-		return Modding.resolveSingleton(ctor);
+		return Modding.resolveDependency(ArtificialDependency, id, 0, {});
 	}
 
 	/** @hidden */
@@ -294,6 +290,13 @@ export namespace Flamework {
 		}
 	}
 }
+
+/**
+ * An internal class used for resolving the Dependency<T> macro.
+ */
+class ArtificialDependency {}
+Reflect.defineMetadata(ArtificialDependency, "identifier", Flamework.id<ArtificialDependency>());
+Reflect.defineMetadata(ArtificialDependency, "flamework:isArtificial", true);
 
 export declare function Dependency<T>(): T;
 export declare function Dependency<T>(ctor: Constructor<T>): T;
