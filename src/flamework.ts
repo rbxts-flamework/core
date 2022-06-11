@@ -99,8 +99,7 @@ export namespace Flamework {
 	}
 
 	function getIdentifier(obj: object, suffix = ""): string {
-		const baseIdentifier = Reflect.getMetadata<string>(obj, "identifier") ?? "UnidentifiedFlameworkListener";
-		return baseIdentifier + suffix;
+		return Reflect.getMetadata<string>(obj, "identifier") ?? `UnidentifiedFlameworkListener${suffix}`;
 	}
 
 	const externalClasses = new Set<Constructor>();
@@ -136,7 +135,7 @@ export namespace Flamework {
 			}
 		}
 
-		for (const [ctor, identifier] of Reflect.objToId) {
+		for (const [ctor] of Reflect.objToId) {
 			if (RunService.IsServer() && !isService(ctor)) continue;
 			if (RunService.IsClient() && !isController(ctor)) continue;
 			if (!isConstructor(ctor)) continue;
@@ -175,9 +174,9 @@ export namespace Flamework {
 
 		dependencies.sort(([, a], [, b]) => (a.loadOrder ?? 1) < (b.loadOrder ?? 1));
 
-		Modding.onListenerAdded<OnTick>((object) => tick.set(object, getIdentifier(object, "@OnTick")));
-		Modding.onListenerAdded<OnPhysics>((object) => physics.set(object, getIdentifier(object, "@OnPhysics")));
-		Modding.onListenerAdded<OnRender>((object) => render.set(object, getIdentifier(object, "@OnRender")));
+		Modding.onListenerAdded<OnTick>((object) => tick.set(object, getIdentifier(object, "/OnTick")));
+		Modding.onListenerAdded<OnPhysics>((object) => physics.set(object, getIdentifier(object, "/OnPhysics")));
+		Modding.onListenerAdded<OnRender>((object) => render.set(object, getIdentifier(object, "/OnRender")));
 
 		Modding.onListenerRemoved<OnTick>((object) => tick.delete(object));
 		Modding.onListenerRemoved<OnPhysics>((object) => physics.delete(object));
