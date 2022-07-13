@@ -5,13 +5,6 @@ import { Reflect } from "./reflect";
 import { Constructor } from "./types";
 
 export namespace Flamework {
-	export interface ComponentConfig {
-		tag?: string;
-		attributes?: { [key: string]: t.check<unknown> };
-		defaults?: { [key: string]: unknown };
-		instanceGuard?: t.check<unknown>;
-		refreshAttributes?: boolean;
-	}
 	export interface ServiceConfig {
 		loadOrder?: number;
 	}
