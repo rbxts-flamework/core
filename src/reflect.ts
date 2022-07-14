@@ -200,16 +200,18 @@ export namespace Reflect {
 	}
 
 	/** @hidden */
-	export function decorate(
+	export function decorate<A extends readonly unknown[]>(
 		object: Constructor,
 		id: string,
-		decoration: {
-			func: (descriptor: ClassDescriptor | MethodDescriptor | PropertyDescriptor, config: unknown[]) => void;
-		},
-		args: unknown[],
+		rawDecoration: { _flamework_Parameters: [...A] },
+		args: [...A],
 		property?: string,
 		isStatic = false,
 	) {
+		const decoration = rawDecoration as unknown as {
+			func: (descriptor: ClassDescriptor | MethodDescriptor | PropertyDescriptor, config: [...A]) => void;
+		};
+
 		const descriptor = {
 			id,
 			isStatic,
