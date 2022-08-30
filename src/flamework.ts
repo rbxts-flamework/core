@@ -176,11 +176,14 @@ export namespace Flamework {
 			if (Flamework.implements<OnStart>(dependency)) start.set(dependency, getIdentifier(dependency));
 		}
 
-		for (const [dependency, indentifier] of init) {
-			debug.setmemorycategory(indentifier);
+		for (const [dependency, identifier] of init) {
+			debug.setmemorycategory(identifier);
 			const initResult = dependency.onInit();
 			if (Promise.is(initResult)) {
-				initResult.await();
+				const [status, value] = initResult.awaitStatus();
+				if (status === Promise.Status.Rejected) {
+					throw `OnInit failed for dependency '${identifier}'. ${tostring(value)}`;
+				}
 			}
 			debug.resetmemorycategory();
 		}
