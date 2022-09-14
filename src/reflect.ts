@@ -122,7 +122,7 @@ export namespace Reflect {
 	 * Retrieve all values for the specified key from the object and its parents.
 	 * Type parameter is an assertion.
 	 */
-	export function getMetadatas<T>(obj: object, key: string, property?: string): T[] {
+	export function getMetadatas<T extends defined>(obj: object, key: string, property?: string): T[] {
 		const values = new Array<T>();
 
 		const value = getOwnMetadata(obj, key, property);
@@ -208,7 +208,7 @@ export namespace Reflect {
 		property?: string,
 		isStatic = false,
 	) {
-		const decoration = rawDecoration as unknown as {
+		const decoration = (rawDecoration as unknown) as {
 			func: (descriptor: ClassDescriptor | MethodDescriptor | PropertyDescriptor, config: [...A]) => void;
 		};
 

@@ -49,10 +49,10 @@ export namespace Flamework {
 
 		const preload = (moduleScript: ModuleScript) => {
 			const start = os.clock();
-			const result = opcall(require, moduleScript);
+			const [success, value] = pcall(require, moduleScript);
 			const endTime = math.floor((os.clock() - start) * 1000);
-			if (!result.success) {
-				throw `${moduleScript.GetFullName()} failed to preload (${endTime}ms): ${result.error}`;
+			if (!success) {
+				throw `${moduleScript.GetFullName()} failed to preload (${endTime}ms): ${value}`;
 			}
 		};
 
