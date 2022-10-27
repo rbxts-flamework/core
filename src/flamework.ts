@@ -154,8 +154,8 @@ export namespace Flamework {
 			dependencies.push([dependency, decorator.arguments[0] || {}]);
 		}
 
-		const start = new Map<OnStart, string>();
-		const init = new Map<OnInit, string>();
+		const start = new Array<[OnStart, string]>();
+		const init = new Array<[OnInit, string]>();
 
 		const tick = new Map<OnTick, string>();
 		const render = new Map<OnRender, string>();
@@ -172,8 +172,8 @@ export namespace Flamework {
 		Modding.onListenerRemoved<OnRender>((object) => render.delete(object));
 
 		for (const [dependency] of dependencies) {
-			if (Flamework.implements<OnInit>(dependency)) init.set(dependency, getIdentifier(dependency));
-			if (Flamework.implements<OnStart>(dependency)) start.set(dependency, getIdentifier(dependency));
+			if (Flamework.implements<OnInit>(dependency)) init.push([dependency, getIdentifier(dependency)]);
+			if (Flamework.implements<OnStart>(dependency)) start.push([dependency, getIdentifier(dependency)]);
 		}
 
 		for (const [dependency, identifier] of init) {
