@@ -60,7 +60,7 @@ export namespace Modding {
 	const listenerRemovedEvents = new Map<string, Signal<ListenerRemovedEvent>>();
 
 	const dependencyResolution = new Map<string, (ctor: Constructor) => object>();
-	const resolvedSingletons = new Map<Constructor, unknown>();
+	const resolvedSingletons = new Map<Constructor, object>();
 	const loadingList = new Array<Constructor>();
 
 	/**
