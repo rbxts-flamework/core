@@ -337,9 +337,9 @@ export namespace Modding {
 	/**
 	 * Retrieves a singleton or instantiates one if it does not exist.
 	 */
-	export function resolveSingleton<T extends object>(ctor: Constructor<T>) {
+	export function resolveSingleton<T extends object>(ctor: Constructor<T>): T {
 		const resolvedDependency = resolvedSingletons.get(ctor);
-		if (resolvedDependency !== undefined) return resolvedDependency;
+		if (resolvedDependency !== undefined) return resolvedDependency as T;
 		if (loadingList.includes(ctor)) throw `Circular dependency detected ${loadingList.join(" <=> ")} <=> ${ctor}`;
 
 		loadingList.push(ctor);
