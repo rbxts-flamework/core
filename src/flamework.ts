@@ -23,9 +23,16 @@ export namespace Flamework {
 		isDefault: true,
 	};
 	export let isInitialized = false;
+	let isPreloading = false;
 
 	/** @hidden */
 	export function resolveDependency(id: string) {
+		if (isPreloading) {
+			const [source, line] = debug.info(2, "sl");
+			warn(`[Flamework] Attempting to load dependency '${id}' during preloading.`);
+			warn("This is prone to race conditions and is not guaranteed to succeed.");
+			warn(`Script '${source}', Line ${line}`);
+		}
 		return Modding.resolveDependency(ArtificialDependency, id, 0, {});
 	}
 
@@ -48,9 +55,11 @@ export namespace Flamework {
 		}
 
 		const preload = (moduleScript: ModuleScript) => {
+			isPreloading = true;
 			const start = os.clock();
 			const [success, value] = pcall(require, moduleScript);
 			const endTime = math.floor((os.clock() - start) * 1000);
+			isPreloading = false;
 			if (!success) {
 				throw `${moduleScript.GetFullName()} failed to preload (${endTime}ms): ${value}`;
 			}
