@@ -260,8 +260,6 @@ export namespace Flamework {
 				dependency.onStart();
 			});
 		}
-
-		return dependencies;
 	}
 
 	/**
