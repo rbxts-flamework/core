@@ -100,6 +100,34 @@ export namespace Flamework {
 		return Reflect.getMetadata<string>(obj, "identifier") ?? `UnidentifiedFlameworkListener${suffix}`;
 	}
 
+	// This returns a Map rather than an Array because table.sort is unstable and will not preserve element order.
+	function topologicalSort(objects: string[]) {
+		// This implementation ignores circular dependency trees.
+		let currentSize = 0;
+		const sorted = new Map<string, number>();
+		const visited = new Set<string>();
+		const visitor = (node: string) => {
+			if (visited.has(node)) return;
+			visited.add(node);
+
+			const object = Reflect.idToObj.get(node);
+			if (!object) return;
+
+			const dependencies = Reflect.getMetadata<string[]>(object, "flamework:parameters");
+			for (const dependency of dependencies ?? []) {
+				visitor(dependency);
+			}
+
+			sorted.set(node, currentSize++);
+		};
+
+		for (const node of objects) {
+			visitor(node);
+		}
+
+		return sorted;
+	}
+
 	const externalClasses = new Set<Constructor>();
 
 	/**
@@ -147,7 +175,7 @@ export namespace Flamework {
 			Modding.resolveSingleton(ctor);
 		}
 
-		const dependencies = new Array<[unknown, LoadableConfigs]>();
+		const dependencies = new Array<[object, LoadableConfigs]>();
 		const decoratorType = RunService.IsServer()
 			? Flamework.id<typeof Service>()
 			: Flamework.id<typeof Controller>();
@@ -163,6 +191,7 @@ export namespace Flamework {
 			dependencies.push([dependency, decorator.arguments[0] || {}]);
 		}
 
+		const sortedDependencies = topologicalSort(dependencies.map(([obj]) => getIdentifier(obj)));
 		const start = new Array<[OnStart, string]>();
 		const init = new Array<[OnInit, string]>();
 
@@ -170,7 +199,17 @@ export namespace Flamework {
 		const render = new Map<OnRender, string>();
 		const physics = new Map<OnPhysics, string>();
 
-		dependencies.sort(([, a], [, b]) => (a.loadOrder ?? 1) < (b.loadOrder ?? 1));
+		dependencies.sort(([depA, configA], [depB, configB]) => {
+			const aOrder = configA.loadOrder ?? 1;
+			const bOrder = configB.loadOrder ?? 1;
+			if (aOrder !== bOrder) {
+				return aOrder < bOrder;
+			}
+
+			const aIndex = sortedDependencies.get(getIdentifier(depA))!;
+			const bIndex = sortedDependencies.get(getIdentifier(depB))!;
+			return aIndex < bIndex;
+		});
 
 		Modding.onListenerAdded<OnTick>((object) => tick.set(object, getIdentifier(object, "/OnTick")));
 		Modding.onListenerAdded<OnPhysics>((object) => physics.set(object, getIdentifier(object, "/OnPhysics")));
