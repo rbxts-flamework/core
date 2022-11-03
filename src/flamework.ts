@@ -162,9 +162,8 @@ export namespace Flamework {
 		}
 
 		for (const [ctor] of Reflect.objToId) {
-			if (RunService.IsServer() && !isService(ctor)) continue;
-			if (RunService.IsClient() && !isController(ctor)) continue;
 			if (!isConstructor(ctor)) continue;
+			if (!Reflect.getMetadata<boolean>(ctor, "flamework:singleton")) continue;
 
 			const isPatched = Reflect.getOwnMetadata<boolean>(ctor, "flamework:isPatched");
 			if (flameworkConfig.loadOverride && !flameworkConfig.loadOverride.includes(ctor) && !isPatched) continue;
@@ -175,20 +174,10 @@ export namespace Flamework {
 			Modding.resolveSingleton(ctor);
 		}
 
-		const dependencies = new Array<[object, LoadableConfigs]>();
-		const decoratorType = RunService.IsServer()
-			? Flamework.id<typeof Service>()
-			: Flamework.id<typeof Controller>();
-
-		for (const [ctor] of Modding.getSingletons()) {
-			const decorator = Modding.getDecorator<typeof Service | typeof Controller>(ctor, undefined, decoratorType);
-			if (!decorator) continue;
-
-			const isExternal = Reflect.getOwnMetadata<boolean>(ctor, "flamework:isExternal");
-			if (isExternal && !externalClasses.has(ctor as Constructor)) continue;
-
-			const dependency = Modding.resolveSingleton(ctor);
-			dependencies.push([dependency, decorator.arguments[0] || {}]);
+		const dependencies = new Array<[instance: object, loadOrder: number]>();
+		for (const [ctor, dependency] of Modding.getSingletons()) {
+			const loadOrder = Reflect.getMetadata<number>(ctor, "flamework:loadOrder") ?? 1;
+			dependencies.push([dependency, loadOrder]);
 		}
 
 		const sortedDependencies = topologicalSort(dependencies.map(([obj]) => getIdentifier(obj)));
@@ -199,9 +188,7 @@ export namespace Flamework {
 		const render = new Map<OnRender, string>();
 		const physics = new Map<OnPhysics, string>();
 
-		dependencies.sort(([depA, configA], [depB, configB]) => {
-			const aOrder = configA.loadOrder ?? 1;
-			const bOrder = configB.loadOrder ?? 1;
+		dependencies.sort(([depA, aOrder], [depB, bOrder]) => {
 			if (aOrder !== bOrder) {
 				return aOrder < bOrder;
 			}
@@ -273,8 +260,6 @@ export namespace Flamework {
 				dependency.onStart();
 			});
 		}
-
-		return dependencies;
 	}
 
 	/**
@@ -352,7 +337,12 @@ export declare function Dependency<T>(ctor?: Constructor<T>): T;
  * @server
  * @metadata flamework:implements flamework:parameters
  */
-export const Service = Modding.createMetaDecorator<[opts?: Flamework.ServiceConfig]>("Class");
+export const Service = Modding.createDecorator<[opts?: Flamework.ServiceConfig]>("Class", (descriptor, [cfg]) => {
+	if (RunService.IsServer()) {
+		Reflect.defineMetadata(descriptor.object, "flamework:singleton", true);
+		Reflect.defineMetadata(descriptor.object, "flamework:loadOrder", cfg?.loadOrder);
+	}
+});
 
 /**
  * Register a class as a Controller.
@@ -360,7 +350,12 @@ export const Service = Modding.createMetaDecorator<[opts?: Flamework.ServiceConf
  * @client
  * @metadata flamework:implements flamework:parameters
  */
-export const Controller = Modding.createMetaDecorator<[opts?: Flamework.ControllerConfig]>("Class");
+export const Controller = Modding.createDecorator<[opts?: Flamework.ControllerConfig]>("Class", (descriptor, [cfg]) => {
+	if (RunService.IsClient()) {
+		Reflect.defineMetadata(descriptor.object, "flamework:singleton", true);
+		Reflect.defineMetadata(descriptor.object, "flamework:loadOrder", cfg?.loadOrder);
+	}
+});
 
 /**
  * Marks this class as an external class.
