@@ -268,6 +268,11 @@ export namespace Flamework {
 	export declare function addPaths(...args: string[]): void;
 
 	/**
+	 * Preload the specified paths by requiring all ModuleScript descendants.
+	 */
+	export declare function addPaths(config: { glob: "file" | "directory" }, ...args: string[]): void;
+
+	/**
 	 * Retrieve the identifier for the specified type.
 	 */
 	export declare function id<T>(): string;
