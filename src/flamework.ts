@@ -1,5 +1,6 @@
 import { Players, RunService } from "@rbxts/services";
 import { t } from "@rbxts/t";
+import { Metadata } from "./metadata";
 import { Modding } from "./modding";
 import { Reflect } from "./reflect";
 import { Constructor } from "./types";
@@ -66,6 +67,7 @@ export namespace Flamework {
 		};
 
 		for (const path of preloadPaths) {
+			logIfVerbose(`Preloading directory ${path.GetFullName()}`);
 			if (path.IsA("ModuleScript")) {
 				preload(path);
 			}
@@ -90,6 +92,12 @@ export namespace Flamework {
 
 	function isController(ctor: object) {
 		return Modding.getDecorator<typeof Controller>(ctor) !== undefined;
+	}
+
+	function logIfVerbose(...args: unknown[]) {
+		if (Metadata.getLogLevel() === "verbose") {
+			print("[Flamework (verbose)]", ...args);
+		}
 	}
 
 	function isConstructor(obj: object): obj is Constructor {
@@ -172,6 +180,7 @@ export namespace Flamework {
 			if (isExternal && !externalClasses.has(ctor as Constructor)) continue;
 
 			Modding.resolveSingleton(ctor);
+			logIfVerbose(`Resolving singleton ${ctor}`);
 		}
 
 		const dependencies = new Array<[instance: object, loadOrder: number]>();
@@ -213,6 +222,7 @@ export namespace Flamework {
 
 		for (const [dependency, identifier] of init) {
 			debug.setmemorycategory(identifier);
+			logIfVerbose(`OnInit ${identifier}`);
 			const initResult = dependency.onInit();
 			if (Promise.is(initResult)) {
 				const [status, value] = initResult.awaitStatus();
@@ -254,9 +264,10 @@ export namespace Flamework {
 			});
 		}
 
-		for (const [dependency, indentifier] of start) {
+		for (const [dependency, identifier] of start) {
 			task.spawn(() => {
-				debug.setmemorycategory(indentifier);
+				debug.setmemorycategory(identifier);
+				logIfVerbose(`OnStart ${identifier}`);
 				dependency.onStart();
 			});
 		}
