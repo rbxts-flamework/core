@@ -33,6 +33,12 @@ export namespace Flamework {
 			warn(`[Flamework] Attempting to load dependency '${id}' during preloading.`);
 			warn("This is prone to race conditions and is not guaranteed to succeed.");
 			warn(`Script '${source}', Line ${line}`);
+		} else if (!hasFlameworkIgnited && Metadata.gameConfig.disableDependencyWarnings !== true) {
+			const [source, line] = debug.info(2, "sl");
+			warn(`[Flamework] Dependency '${id}' was loaded before ignition.`);
+			warn("This is considered bad practice and should be avoided.");
+			warn("You can disable this warning in flamework.json");
+			warn(`Script '${source}', Line ${line}`);
 		}
 		return Modding.resolveDependency(ArtificialDependency, id, 0, {});
 	}
