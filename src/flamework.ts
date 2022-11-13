@@ -92,14 +92,6 @@ export namespace Flamework {
 		);
 	}
 
-	function isService(ctor: object) {
-		return Modding.getDecorator<typeof Service>(ctor) !== undefined;
-	}
-
-	function isController(ctor: object) {
-		return Modding.getDecorator<typeof Controller>(ctor) !== undefined;
-	}
-
 	function logIfVerbose(...args: unknown[]) {
 		if (Metadata.getLogLevel() === "verbose") {
 			print("[Flamework (verbose)]", ...args);
