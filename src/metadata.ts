@@ -7,6 +7,7 @@ export namespace Metadata {
 	 */
 	export interface Config {
 		logLevel?: "none" | "verbose";
+		disableDependencyWarnings?: boolean;
 	}
 
 	/**
@@ -32,11 +33,13 @@ export namespace Metadata {
 		}
 	}
 
-	const configContainer = getConfigContainer();
-
 	function getConfig(packageId?: string) {
 		return packageId === undefined ? configContainer?.game : configContainer?.packages.get(packageId);
 	}
+
+	export const configContainer = getConfigContainer();
+
+	export const gameConfig = configContainer?.game ?? {};
 
 	export function getLogLevel(packageId?: string) {
 		const config = getConfig(packageId);
