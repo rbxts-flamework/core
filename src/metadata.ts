@@ -1,3 +1,5 @@
+import { RunService } from "@rbxts/services";
+
 /**
  * Metadata exposed by the Flamework transformer.
  */
@@ -7,6 +9,7 @@ export namespace Metadata {
 	 */
 	export interface Config {
 		logLevel?: "none" | "verbose";
+		profiling?: boolean;
 		disableDependencyWarnings?: boolean;
 	}
 
@@ -46,5 +49,12 @@ export namespace Metadata {
 		if (!config || config.logLevel === undefined) return "none";
 
 		return config.logLevel;
+	}
+
+	export function isProfiling(packageId?: string) {
+		const config = getConfig(packageId);
+		if (!config || config.profiling === undefined) return RunService.IsStudio();
+
+		return config.profiling;
 	}
 }

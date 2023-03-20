@@ -187,6 +187,7 @@ export namespace Flamework {
 			dependencies.push([dependency, loadOrder]);
 		}
 
+		const isProfiling = Metadata.isProfiling();
 		const sortedDependencies = topologicalSort(dependencies.map(([obj]) => getIdentifier(obj)));
 		const start = new Array<[OnStart, string]>();
 		const init = new Array<[OnInit, string]>();
@@ -205,6 +206,18 @@ export namespace Flamework {
 			return aIndex < bIndex;
 		});
 
+		function profile<O>(func: () => O, identifier: string): O {
+			if (isProfiling) {
+				debug.setmemorycategory(identifier);
+				debug.profilebegin(identifier);
+				const result = func();
+				debug.profileend();
+				return result;
+			} else {
+				return func();
+			}
+		}
+
 		Modding.onListenerAdded<OnTick>((object) => tick.set(object, getIdentifier(object, "/OnTick")));
 		Modding.onListenerAdded<OnPhysics>((object) => physics.set(object, getIdentifier(object, "/OnPhysics")));
 		Modding.onListenerAdded<OnRender>((object) => render.set(object, getIdentifier(object, "/OnRender")));
@@ -219,9 +232,8 @@ export namespace Flamework {
 		}
 
 		for (const [dependency, identifier] of init) {
-			debug.setmemorycategory(identifier);
 			logIfVerbose(`OnInit ${identifier}`);
-			const initResult = dependency.onInit();
+			const initResult = profile(() => dependency.onInit(), identifier);
 			if (Promise.is(initResult)) {
 				const [status, value] = initResult.awaitStatus();
 				if (status === Promise.Status.Rejected) {
@@ -235,39 +247,27 @@ export namespace Flamework {
 
 		RunService.Heartbeat.Connect((dt) => {
 			for (const [dependency, identifier] of tick) {
-				task.spawn(() => {
-					debug.setmemorycategory(identifier);
-					dependency.onTick(dt);
-				});
+				task.spawn(profile, () => dependency.onTick(dt), identifier);
 			}
 		});
 
 		RunService.Stepped.Connect((time, dt) => {
 			for (const [dependency, identifier] of physics) {
-				task.spawn(() => {
-					debug.setmemorycategory(identifier);
-					dependency.onPhysics(dt, time);
-				});
+				task.spawn(profile, () => dependency.onPhysics(dt, time), identifier);
 			}
 		});
 
 		if (RunService.IsClient()) {
 			RunService.RenderStepped.Connect((dt) => {
 				for (const [dependency, identifier] of render) {
-					task.spawn(() => {
-						debug.setmemorycategory(identifier);
-						dependency.onRender(dt);
-					});
+					task.spawn(profile, () => dependency.onRender(dt), identifier);
 				}
 			});
 		}
 
 		for (const [dependency, identifier] of start) {
-			task.spawn(() => {
-				debug.setmemorycategory(identifier);
-				logIfVerbose(`OnStart ${identifier}`);
-				dependency.onStart();
-			});
+			logIfVerbose(`OnStart ${identifier}`);
+			task.spawn(profile, () => dependency.onStart(), identifier);
 		}
 	}
 
