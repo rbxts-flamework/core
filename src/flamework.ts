@@ -134,6 +134,13 @@ export namespace Flamework {
 		return sorted;
 	}
 
+	function profilingThread(func: () => void, identifier: string) {
+		// `profilebegin` will end when this thread dies.
+		debug.profilebegin(identifier);
+		debug.setmemorycategory(identifier);
+		func();
+	}
+
 	const externalClasses = new Set<Constructor>();
 
 	/**
@@ -206,15 +213,11 @@ export namespace Flamework {
 			return aIndex < bIndex;
 		});
 
-		function profile<O>(func: () => O, identifier: string): O {
+		function profileYielding(func: () => void, identifier: string) {
 			if (isProfiling) {
-				debug.setmemorycategory(identifier);
-				debug.profilebegin(identifier);
-				const result = func();
-				debug.profileend();
-				return result;
+				task.spawn(profilingThread, func, identifier);
 			} else {
-				return func();
+				task.spawn(func);
 			}
 		}
 
@@ -233,7 +236,8 @@ export namespace Flamework {
 
 		for (const [dependency, identifier] of init) {
 			logIfVerbose(`OnInit ${identifier}`);
-			const initResult = profile(() => dependency.onInit(), identifier);
+			debug.setmemorycategory(identifier);
+			const initResult = dependency.onInit();
 			if (Promise.is(initResult)) {
 				const [status, value] = initResult.awaitStatus();
 				if (status === Promise.Status.Rejected) {
@@ -247,27 +251,27 @@ export namespace Flamework {
 
 		RunService.Heartbeat.Connect((dt) => {
 			for (const [dependency, identifier] of tick) {
-				task.spawn(profile, () => dependency.onTick(dt), identifier);
+				profileYielding(() => dependency.onTick(dt), identifier);
 			}
 		});
 
 		RunService.Stepped.Connect((time, dt) => {
 			for (const [dependency, identifier] of physics) {
-				task.spawn(profile, () => dependency.onPhysics(dt, time), identifier);
+				profileYielding(() => dependency.onPhysics(dt, time), identifier);
 			}
 		});
 
 		if (RunService.IsClient()) {
 			RunService.RenderStepped.Connect((dt) => {
 				for (const [dependency, identifier] of render) {
-					task.spawn(profile, () => dependency.onRender(dt), identifier);
+					profileYielding(() => dependency.onRender(dt), identifier);
 				}
 			});
 		}
 
 		for (const [dependency, identifier] of start) {
 			logIfVerbose(`OnStart ${identifier}`);
-			task.spawn(profile, () => dependency.onStart(), identifier);
+			profileYielding(() => dependency.onStart(), identifier);
 		}
 	}
 
