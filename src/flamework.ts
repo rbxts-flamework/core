@@ -235,8 +235,8 @@ export namespace Flamework {
 		}
 
 		for (const [dependency, identifier] of init) {
-			logIfVerbose(`OnInit ${identifier}`);
 			debug.setmemorycategory(identifier);
+			logIfVerbose(`OnInit ${identifier}`);
 			const initResult = dependency.onInit();
 			if (Promise.is(initResult)) {
 				const [status, value] = initResult.awaitStatus();
