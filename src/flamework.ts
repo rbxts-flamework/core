@@ -134,6 +134,9 @@ export namespace Flamework {
 		return sorted;
 	}
 
+	const externalClasses = new Set<Constructor>();
+	const isProfiling = Metadata.isProfiling();
+
 	function profilingThread(func: () => void, identifier: string) {
 		// `profilebegin` will end when this thread dies.
 		debug.profilebegin(identifier);
@@ -141,7 +144,13 @@ export namespace Flamework {
 		func();
 	}
 
-	const externalClasses = new Set<Constructor>();
+	function profileYielding(func: () => void, identifier: string) {
+		if (isProfiling) {
+			task.spawn(profilingThread, func, identifier);
+		} else {
+			task.spawn(func);
+		}
+	}
 
 	/**
 	 * Allow an external module to be bootstrapped by Flamework.ignite()
@@ -194,7 +203,6 @@ export namespace Flamework {
 			dependencies.push([dependency, loadOrder]);
 		}
 
-		const isProfiling = Metadata.isProfiling();
 		const sortedDependencies = topologicalSort(dependencies.map(([obj]) => getIdentifier(obj)));
 		const start = new Array<[OnStart, string]>();
 		const init = new Array<[OnInit, string]>();
@@ -212,14 +220,6 @@ export namespace Flamework {
 			const bIndex = sortedDependencies.get(getIdentifier(depB))!;
 			return aIndex < bIndex;
 		});
-
-		function profileYielding(func: () => void, identifier: string) {
-			if (isProfiling) {
-				task.spawn(profilingThread, func, identifier);
-			} else {
-				task.spawn(func);
-			}
-		}
 
 		Modding.onListenerAdded<OnTick>((object) => tick.set(object, getIdentifier(object, "/OnTick")));
 		Modding.onListenerAdded<OnPhysics>((object) => physics.set(object, getIdentifier(object, "/OnPhysics")));
