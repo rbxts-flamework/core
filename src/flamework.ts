@@ -235,7 +235,8 @@ export namespace Flamework {
 		}
 
 		for (const [dependency, identifier] of init) {
-			debug.setmemorycategory(identifier);
+			if (isProfiling) debug.setmemorycategory(identifier);
+
 			logIfVerbose(`OnInit ${identifier}`);
 			const initResult = dependency.onInit();
 			if (Promise.is(initResult)) {
@@ -244,8 +245,9 @@ export namespace Flamework {
 					throw `OnInit failed for dependency '${identifier}'. ${tostring(value)}`;
 				}
 			}
-			debug.resetmemorycategory();
 		}
+
+		debug.resetmemorycategory();
 
 		isInitialized = true;
 
