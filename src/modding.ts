@@ -479,6 +479,10 @@ export namespace Modding {
 		return result as T;
 	}
 
+	export type Many<T> = T & {
+		/** @hidden */ _flamework_macro_many: T;
+	};
+
 	export type Generic<T, M extends keyof GenericMetadata<T>> = Pick<GenericMetadata<T>, M> & {
 		/** @hidden */ _flamework_macro_generic: [T, { [k in M]: k }];
 	};
