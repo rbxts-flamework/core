@@ -463,6 +463,23 @@ export namespace Modding {
 	}
 
 	/**
+	 * This function is able to utilize Flamework's user macros to generate and inspect types.
+	 * This function supports all values natively supported by Flamework's user macros.
+	 *
+	 * For example, if you want to retrieve the properties of an instance, you could write code like this:
+	 * ```ts
+	 * // Returns an array of all keys part of the union.
+	 * const basePartKeys = Modding.inspect<InstancePropertyNames<BasePart>[]>();
+	 * ```
+	 *
+	 * @metadata macro
+	 */
+	export function inspect<T>(value?: Modding.Many<T>): T {
+		assert(value);
+		return value;
+	}
+
+	/**
 	 * @hidden
 	 * @deprecated
 	 */
