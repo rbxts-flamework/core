@@ -487,6 +487,10 @@ export namespace Modding {
 		/** @hidden */ _flamework_macro_generic: [T, { [k in M]: k }];
 	};
 
+	export type Hash<T extends string, C extends string = never> = string & {
+		/** @hidden */ _flamework_macro_hash: [T, C];
+	};
+
 	export type Caller<M extends keyof CallerMetadata> = Pick<CallerMetadata, M> & {
 		/** @hidden */ _flamework_macro_caller: { [k in M]: k };
 	};
