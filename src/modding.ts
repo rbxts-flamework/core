@@ -496,25 +496,51 @@ export namespace Modding {
 		return result as T;
 	}
 
+	/**
+	 * This API allows you to use more complex queries, inspect types, generate arbitrary objects based on types, etc.
+	 *
+	 * @experimental This API is considered experimental and may change.
+	 */
 	export type Many<T> = T & {
 		/** @hidden */ _flamework_macro_many: T;
 	};
 
-	export type Generic<T, M extends keyof GenericMetadata<T>> = Pick<GenericMetadata<T>, M> & {
-		/** @hidden */ _flamework_macro_generic: [T, { [k in M]: k }];
-	};
-
+	/**
+	 * Hashes a string literal type (such as an event name) under Flamework's {@link Many `Many`} API.
+	 *
+	 * The second type argument, `C`, is for providing a context to the hashing which will generate new hashes
+	 * for strings which already have a hash under another context.
+	 *
+	 * @experimental This API is considered experimental and may change.
+	 */
 	export type Hash<T extends string, C extends string = never> = string & {
 		/** @hidden */ _flamework_macro_hash: [T, C];
 	};
 
-	export type Caller<M extends keyof CallerMetadata> = Pick<CallerMetadata, M> & {
-		/** @hidden */ _flamework_macro_caller: { [k in M]: k };
-	};
-
+	/**
+	 * Retrieves the labels from this tuple under Flamework's {@link Many `Many`} API.
+	 *
+	 * This can also be used to extract parameter names via `Parameters<T>`
+	 *
+	 * @experimental This API is considered experimental and may change.
+	 */
 	export type TupleLabels<T extends readonly unknown[]> =
 		| (string[] & { /** @hidden */ _flamework_macro_tuple_labels: T })
 		| undefined;
+
+	/**
+	 * Retrieves metadata about the specified type using Flamework's user macros.
+	 */
+	export type Generic<T, M extends keyof GenericMetadata<T>> = Pick<GenericMetadata<T>, M> & {
+		/** @hidden */ _flamework_macro_generic: [T, { [k in M]: k }];
+	};
+
+	/**
+	 * Retrieves metadata about the callsite using Flamework's user macros.
+	 */
+	export type Caller<M extends keyof CallerMetadata> = Pick<CallerMetadata, M> & {
+		/** @hidden */ _flamework_macro_caller: { [k in M]: k };
+	};
 
 	function defineDecoratorMetadata(descriptor: PropertyDescriptor, config: unknown[]) {
 		const propertyKey = descriptor.isStatic ? `static:${descriptor.property}` : descriptor.property;
