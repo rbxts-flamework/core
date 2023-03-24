@@ -512,6 +512,10 @@ export namespace Modding {
 		/** @hidden */ _flamework_macro_caller: { [k in M]: k };
 	};
 
+	export type TupleLabels<T extends readonly unknown[]> =
+		| (string[] & { /** @hidden */ _flamework_macro_tuple_labels: T })
+		| undefined;
+
 	function defineDecoratorMetadata(descriptor: PropertyDescriptor, config: unknown[]) {
 		const propertyKey = descriptor.isStatic ? `static:${descriptor.property}` : descriptor.property;
 		Reflect.defineMetadata(
