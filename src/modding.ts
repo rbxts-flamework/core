@@ -518,6 +518,15 @@ export namespace Modding {
 	};
 
 	/**
+	 * This is equivalent to {@link Hash `Hash`} except it will only hash strings when `obfuscation` is turned on.
+	 *
+	 * @experimental This API is considered experimental and may change.
+	 */
+	export type Obfuscate<T extends string, C extends string = never> = string & {
+		/** @hidden */ _flamework_macro_hash: [T, C, true];
+	};
+
+	/**
 	 * Retrieves the labels from this tuple under Flamework's {@link Many `Many`} API.
 	 *
 	 * This can also be used to extract parameter names via `Parameters<T>`
