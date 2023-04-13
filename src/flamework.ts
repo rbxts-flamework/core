@@ -159,7 +159,6 @@ export namespace Flamework {
 		externalClasses.add(ctor);
 	}
 
-	type LoadableConfigs = ServiceConfig | ControllerConfig;
 	let hasFlameworkIgnited = false;
 
 	/**
