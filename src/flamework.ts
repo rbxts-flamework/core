@@ -355,7 +355,7 @@ export declare function Dependency<T>(ctor?: Constructor<T>): T;
  * Register a class as a Service.
  *
  * @server
- * @metadata flamework:implements flamework:parameters
+ * @metadata flamework:implements flamework:parameters injectable
  */
 export const Service = Modding.createDecorator<[opts?: Flamework.ServiceConfig]>("Class", (descriptor, [cfg]) => {
 	if (RunService.IsServer()) {
@@ -368,7 +368,7 @@ export const Service = Modding.createDecorator<[opts?: Flamework.ServiceConfig]>
  * Register a class as a Controller.
  *
  * @client
- * @metadata flamework:implements flamework:parameters
+ * @metadata flamework:implements flamework:parameters injectable
  */
 export const Controller = Modding.createDecorator<[opts?: Flamework.ControllerConfig]>("Class", (descriptor, [cfg]) => {
 	if (RunService.IsClient()) {
