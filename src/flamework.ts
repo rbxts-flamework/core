@@ -137,18 +137,46 @@ export namespace Flamework {
 	const externalClasses = new Set<Constructor>();
 	const isProfiling = Metadata.isProfiling();
 
-	function profilingThread(func: () => void, identifier: string) {
-		// `profilebegin` will end when this thread dies.
-		debug.profilebegin(identifier);
-		debug.setmemorycategory(identifier);
-		func();
+	let inactiveThread: thread | undefined;
+	function reusableThread(func: () => void) {
+		const thread = coroutine.running();
+
+		while (true) {
+			if (inactiveThread === thread) {
+				inactiveThread = undefined;
+			}
+
+			func();
+
+			// If there's a different idle thread, we should end the current thread.
+			if (inactiveThread !== undefined) {
+				break;
+			}
+
+			inactiveThread = thread;
+			[func] = coroutine.yield() as LuaTuple<[never]>;
+		}
 	}
 
 	function profileYielding(func: () => void, identifier: string) {
 		if (isProfiling) {
-			task.spawn(profilingThread, func, identifier);
+			return () => {
+				// `profilebegin` will end when this thread dies or yields.
+				debug.profilebegin(identifier);
+				debug.setmemorycategory(identifier);
+				func();
+				debug.resetmemorycategory();
+			};
 		} else {
-			task.spawn(func);
+			return func;
+		}
+	}
+
+	function reuseThread(func: () => void) {
+		if (inactiveThread) {
+			task.spawn(inactiveThread, func);
+		} else {
+			task.spawn(reusableThread, func);
 		}
 	}
 
@@ -252,27 +280,27 @@ export namespace Flamework {
 
 		RunService.Heartbeat.Connect((dt) => {
 			for (const [dependency, identifier] of tick) {
-				profileYielding(() => dependency.onTick(dt), identifier);
+				reuseThread(profileYielding(() => dependency.onTick(dt), identifier));
 			}
 		});
 
 		RunService.Stepped.Connect((time, dt) => {
 			for (const [dependency, identifier] of physics) {
-				profileYielding(() => dependency.onPhysics(dt, time), identifier);
+				reuseThread(profileYielding(() => dependency.onPhysics(dt, time), identifier));
 			}
 		});
 
 		if (RunService.IsClient()) {
 			RunService.RenderStepped.Connect((dt) => {
 				for (const [dependency, identifier] of render) {
-					profileYielding(() => dependency.onRender(dt), identifier);
+					reuseThread(profileYielding(() => dependency.onRender(dt), identifier));
 				}
 			});
 		}
 
 		for (const [dependency, identifier] of start) {
 			logIfVerbose(`OnStart ${identifier}`);
-			profileYielding(() => dependency.onStart(), identifier);
+			reuseThread(profileYielding(() => dependency.onStart(), identifier));
 		}
 	}
 
