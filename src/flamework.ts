@@ -61,8 +61,10 @@ export namespace Flamework {
 			preloadPaths.push(currentPath);
 		}
 
+		const global = _G as Map<unknown, unknown>;
 		const preload = (moduleScript: ModuleScript) => {
 			isPreloading = true;
+			global.set(moduleScript, global.get(script));
 			const start = os.clock();
 			const [success, value] = pcall(require, moduleScript);
 			const endTime = math.floor((os.clock() - start) * 1000);
