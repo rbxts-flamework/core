@@ -333,8 +333,12 @@ class ArtificialDependency {}
 Reflect.defineMetadata(ArtificialDependency, "identifier", Flamework.id<ArtificialDependency>());
 Reflect.defineMetadata(ArtificialDependency, "flamework:isArtificial", true);
 
-export declare function Dependency<T>(): T;
-export declare function Dependency<T>(ctor: Constructor<T>): T;
+/**
+ * This function resolves a dependency and can be called outside of the usual dependency injection lifecycle.
+ *
+ * This function can make it harder to stub, test or modify your code so it is recommended to use this macro minimally.
+ * It is recommended that you pass dependencies to code that needs it from a singleton, component, etc.
+ */
 export declare function Dependency<T>(ctor?: Constructor<T>): T;
 
 /**
