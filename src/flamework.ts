@@ -15,16 +15,13 @@ export namespace Flamework {
 	export interface Decorator {
 		arguments: unknown[];
 	}
-	export interface FlameworkConfig {
-		isDefault: boolean;
-		loadOverride?: Constructor<unknown>[];
-	}
 
-	export const flameworkConfig: FlameworkConfig = {
-		isDefault: true,
-	};
-	export let isInitialized = false;
+	const externalClasses = new Set<Constructor>();
+	const isProfiling = Metadata.isProfiling();
+
+	let hasFlameworkIgnited = false;
 	let isPreloading = false;
+	let inactiveThread: thread | undefined;
 
 	/** @hidden */
 	export function resolveDependency(id: string) {
@@ -136,10 +133,6 @@ export namespace Flamework {
 		return sorted;
 	}
 
-	const externalClasses = new Set<Constructor>();
-	const isProfiling = Metadata.isProfiling();
-
-	let inactiveThread: thread | undefined;
 	function reusableThread(func: () => void) {
 		const thread = coroutine.running();
 
@@ -189,8 +182,6 @@ export namespace Flamework {
 		externalClasses.add(ctor);
 	}
 
-	let hasFlameworkIgnited = false;
-
 	/**
 	 * Initialize Flamework.
 	 *
@@ -202,22 +193,13 @@ export namespace Flamework {
 	 *
 	 * @returns All the dependencies that have been loaded.
 	 */
-	export function ignite(patchedConfig?: Partial<FlameworkConfig>) {
+	export function ignite() {
 		if (hasFlameworkIgnited) throw "Flamework.ignite() should only be called once";
 		hasFlameworkIgnited = true;
-
-		if (patchedConfig) {
-			for (const [key, value] of pairs(patchedConfig)) {
-				flameworkConfig[key as never] = value as never;
-			}
-		}
 
 		for (const [ctor] of Reflect.objToId) {
 			if (!isConstructor(ctor)) continue;
 			if (!Reflect.getMetadata<boolean>(ctor, "flamework:singleton")) continue;
-
-			const isPatched = Reflect.getOwnMetadata<boolean>(ctor, "flamework:isPatched");
-			if (flameworkConfig.loadOverride && !flameworkConfig.loadOverride.includes(ctor) && !isPatched) continue;
 
 			const isExternal = Reflect.getOwnMetadata<boolean>(ctor, "flamework:isExternal");
 			if (isExternal && !externalClasses.has(ctor as Constructor)) continue;
@@ -277,8 +259,6 @@ export namespace Flamework {
 		}
 
 		debug.resetmemorycategory();
-
-		isInitialized = true;
 
 		RunService.Heartbeat.Connect((dt) => {
 			for (const [dependency, identifier] of tick) {
@@ -344,29 +324,6 @@ export namespace Flamework {
 	 * @param context A scope for the hash
 	 */
 	export declare function hash(str: string, context?: string): string;
-
-	/**
-	 * Utility for use in test suites, not recommended for anything else.
-	 */
-	export namespace Testing {
-		export function patchDependency<T>(patchedClass: Constructor<unknown>, id?: string) {
-			if (id === undefined) throw `Patching failed, no ID`;
-
-			const idCtor = Reflect.idToObj.get(id) as Constructor;
-			if (idCtor === undefined) throw `Dependency ${id} was not found and cannot be patched.`;
-			if (Modding.getSingletons().has(idCtor)) throw `${id} has already been resolved, continuing is unsafe`;
-
-			const objMetadata = Reflect.metadata.get(idCtor);
-			if (!objMetadata) throw `Dependency ${id} has no existing metadata.`;
-
-			Reflect.defineMetadata(idCtor, "flamework:isPatched", true);
-			Reflect.metadata.delete(idCtor);
-			Reflect.metadata.set(patchedClass, objMetadata);
-
-			Reflect.objToId.set(patchedClass, id);
-			Reflect.idToObj.set(id, patchedClass);
-		}
-	}
 }
 
 /**
@@ -376,8 +333,12 @@ class ArtificialDependency {}
 Reflect.defineMetadata(ArtificialDependency, "identifier", Flamework.id<ArtificialDependency>());
 Reflect.defineMetadata(ArtificialDependency, "flamework:isArtificial", true);
 
-export declare function Dependency<T>(): T;
-export declare function Dependency<T>(ctor: Constructor<T>): T;
+/**
+ * This function resolves a dependency and can be called outside of the usual dependency injection lifecycle.
+ *
+ * This function can make it harder to stub, test or modify your code so it is recommended to use this macro minimally.
+ * It is recommended that you pass dependencies to code that needs it from a singleton, component, etc.
+ */
 export declare function Dependency<T>(ctor?: Constructor<T>): T;
 
 /**
