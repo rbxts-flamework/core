@@ -300,7 +300,7 @@ export namespace Modding {
 			assert(decoratorConfig);
 
 			return {
-				object: object,
+				object,
 				constructor: isConstructor(object) ? object : undefined,
 				arguments: decoratorConfig.arguments as DecoratorParameters<T>,
 			};
