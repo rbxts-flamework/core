@@ -1,6 +1,6 @@
 import Signal from "@rbxts/signal";
 import { Reflect } from "./reflect";
-import { Constructor } from "./types";
+import { AbstractConstructor, Constructor, isConstructor } from "./utility";
 import type { Flamework } from "./flamework";
 import { t } from "@rbxts/t";
 
@@ -11,9 +11,14 @@ interface BaseDescriptor {
 	id: string;
 
 	/**
-	 * The constructor this decorator is attached to.
+	 * The object this decorator is attached to.
 	 */
-	object: Constructor;
+	object: AbstractConstructor;
+
+	/**
+	 * The constructor this decorator is attached to, unless abstract.
+	 */
+	constructor?: Constructor;
 }
 
 export interface ClassDescriptor extends BaseDescriptor {}
@@ -24,7 +29,8 @@ export interface PropertyDescriptor extends BaseDescriptor {
 }
 
 interface AttachedDecorator<T extends readonly unknown[]> {
-	object: Constructor;
+	object: AbstractConstructor;
+	constructor?: Constructor;
 	arguments: T;
 }
 
@@ -295,8 +301,9 @@ export namespace Modding {
 
 			return {
 				object: object,
-				arguments: decoratorConfig.arguments,
-			} as never;
+				constructor: isConstructor(object) ? object : undefined,
+				arguments: decoratorConfig.arguments as DecoratorParameters<T>,
+			};
 		});
 	}
 
@@ -629,10 +636,6 @@ interface DependencyResolutionOptions {
 	 * Fires whenever Flamework tries to resolve a primitive (e.g string)
 	 */
 	handlePrimitive?: (id: string, index: number) => defined;
-}
-
-function isConstructor(obj: object): obj is Constructor {
-	return "new" in obj && "constructor" in obj;
 }
 
 function getDeferredConstructor<T extends Constructor<unknown>>(ctor: T) {

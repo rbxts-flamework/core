@@ -1,14 +1,20 @@
 import type { ClassDescriptor, MethodDescriptor, PropertyDescriptor } from "./modding";
-import { Constructor } from "./types";
+import { AbstractConstructor, isConstructor } from "./utility";
 
 /**
  * Reflection/metadata API
  */
 export namespace Reflect {
-	// object -> property -> key -> value
-	export const metadata = new WeakMap<object, Map<string | typeof NO_PROP_MARKER, Map<string, unknown>>>();
-	export const decorators = new Map<string, Array<object>>();
+	/** object -> property -> key -> value */
+	const metadata = new WeakMap<object, Map<string | typeof NO_PROP_MARKER, Map<string, unknown>>>();
+
+	/** @internal */
+	export const decorators = new Map<string, Array<AbstractConstructor>>();
+
+	/** @internal */
 	export const idToObj = new Map<string, object>();
+
+	/** @internal */
 	export const objToId = new Map<object, string>();
 
 	const NO_PROP_MARKER = {} as { _nominal_Marker: never };
@@ -201,7 +207,7 @@ export namespace Reflect {
 
 	/** @hidden */
 	export function decorate<A extends readonly unknown[]>(
-		object: Constructor,
+		object: AbstractConstructor,
 		id: string,
 		rawDecoration: { _flamework_Parameters: [...A] },
 		args: [...A],
@@ -216,6 +222,7 @@ export namespace Reflect {
 			id,
 			isStatic,
 			object,
+			contructor: isConstructor(object) ? object : undefined,
 			property,
 		};
 
