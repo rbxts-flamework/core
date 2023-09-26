@@ -210,7 +210,7 @@ export namespace Reflect {
 		property?: string,
 		isStatic = false,
 	) {
-		const decoration = (rawDecoration as unknown) as {
+		const decoration = rawDecoration as unknown as {
 			func: (descriptor: ClassDescriptor | MethodDescriptor | PropertyDescriptor, config: [...A]) => void;
 		};
 
