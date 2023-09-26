@@ -193,7 +193,7 @@ export namespace Flamework {
 		if (hasFlameworkIgnited) throw "Flamework.ignite() should only be called once";
 		hasFlameworkIgnited = true;
 
-		for (const [ctor] of Reflect.objToId) {
+		for (const [, ctor] of Reflect.idToObj) {
 			if (!isConstructor(ctor)) continue;
 			if (!Reflect.getMetadata<boolean>(ctor, "flamework:singleton")) continue;
 

@@ -7,15 +7,11 @@ import { AbstractConstructor, isConstructor } from "./utility";
 export namespace Reflect {
 	/** object -> property -> key -> value */
 	const metadata = new WeakMap<object, Map<string | typeof NO_PROP_MARKER, Map<string, unknown>>>();
+	const objToId = new Map<object, string>();
 
 	/** @internal */
 	export const decorators = new Map<string, Array<AbstractConstructor>>();
-
-	/** @internal */
 	export const idToObj = new Map<string, object>();
-
-	/** @internal */
-	export const objToId = new Map<object, string>();
 
 	const NO_PROP_MARKER = {} as { _nominal_Marker: never };
 
