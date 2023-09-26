@@ -231,4 +231,14 @@ export namespace Reflect {
 
 		decoration.func(descriptor, args);
 	}
+
+	/** @hidden Internal use, do not use */
+	export function resetObject(object: object) {
+		const id = objToId.get(object);
+		if (id !== undefined) {
+			objToId.delete(object);
+			idToObj.delete(id);
+		}
+		metadata.delete(object);
+	}
 }
