@@ -3,7 +3,7 @@ import { t } from "@rbxts/t";
 import { Metadata } from "./metadata";
 import { Modding } from "./modding";
 import { Reflect } from "./reflect";
-import { Constructor } from "./types";
+import { AbstractConstructor, Constructor, isConstructor } from "./utility";
 
 export namespace Flamework {
 	export interface ServiceConfig {
@@ -95,10 +95,6 @@ export namespace Flamework {
 		if (Metadata.getLogLevel() === "verbose") {
 			print("[Flamework (verbose)]", ...args);
 		}
-	}
-
-	function isConstructor(obj: object): obj is Constructor {
-		return "new" in obj && "constructor" in obj;
 	}
 
 	function getIdentifier(obj: object, suffix = ""): string {
@@ -197,12 +193,12 @@ export namespace Flamework {
 		if (hasFlameworkIgnited) throw "Flamework.ignite() should only be called once";
 		hasFlameworkIgnited = true;
 
-		for (const [ctor] of Reflect.objToId) {
+		for (const [, ctor] of Reflect.idToObj) {
 			if (!isConstructor(ctor)) continue;
 			if (!Reflect.getMetadata<boolean>(ctor, "flamework:singleton")) continue;
 
 			const isExternal = Reflect.getOwnMetadata<boolean>(ctor, "flamework:isExternal");
-			if (isExternal && !externalClasses.has(ctor as Constructor)) continue;
+			if (isExternal && !externalClasses.has(ctor)) continue;
 
 			Modding.resolveSingleton(ctor);
 			logIfVerbose(`Resolving singleton ${ctor}`);
@@ -304,7 +300,7 @@ export namespace Flamework {
 	/**
 	 * Check if the constructor implements the specified interface.
 	 */
-	export declare function implements<T>(object: Constructor): boolean;
+	export declare function implements<T>(object: AbstractConstructor): boolean;
 
 	/**
 	 * Check if object implements the specified interface.

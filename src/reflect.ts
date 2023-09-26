@@ -1,15 +1,17 @@
 import type { ClassDescriptor, MethodDescriptor, PropertyDescriptor } from "./modding";
-import { Constructor } from "./types";
+import { AbstractConstructor, isConstructor } from "./utility";
 
 /**
  * Reflection/metadata API
  */
 export namespace Reflect {
-	// object -> property -> key -> value
-	export const metadata = new WeakMap<object, Map<string | typeof NO_PROP_MARKER, Map<string, unknown>>>();
-	export const decorators = new Map<string, Array<object>>();
+	/** object -> property -> key -> value */
+	const metadata = new WeakMap<object, Map<string | typeof NO_PROP_MARKER, Map<string, unknown>>>();
+	const objToId = new Map<object, string>();
+
+	/** @internal */
+	export const decorators = new Map<string, Array<AbstractConstructor>>();
 	export const idToObj = new Map<string, object>();
-	export const objToId = new Map<object, string>();
 
 	const NO_PROP_MARKER = {} as { _nominal_Marker: never };
 
@@ -201,14 +203,14 @@ export namespace Reflect {
 
 	/** @hidden */
 	export function decorate<A extends readonly unknown[]>(
-		object: Constructor,
+		object: AbstractConstructor,
 		id: string,
 		rawDecoration: { _flamework_Parameters: [...A] },
 		args: [...A],
 		property?: string,
 		isStatic = false,
 	) {
-		const decoration = (rawDecoration as unknown) as {
+		const decoration = rawDecoration as unknown as {
 			func: (descriptor: ClassDescriptor | MethodDescriptor | PropertyDescriptor, config: [...A]) => void;
 		};
 
@@ -216,6 +218,7 @@ export namespace Reflect {
 			id,
 			isStatic,
 			object,
+			contructor: isConstructor(object) ? object : undefined,
 			property,
 		};
 
@@ -227,5 +230,15 @@ export namespace Reflect {
 		}
 
 		decoration.func(descriptor, args);
+	}
+
+	/** @hidden Internal use, do not use */
+	export function resetObject(object: object) {
+		const id = objToId.get(object);
+		if (id !== undefined) {
+			objToId.delete(object);
+			idToObj.delete(id);
+		}
+		metadata.delete(object);
 	}
 }
