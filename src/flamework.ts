@@ -16,7 +16,6 @@ export namespace Flamework {
 		arguments: unknown[];
 	}
 
-	const externalClasses = new Set<Constructor>();
 	const isProfiling = Metadata.isProfiling();
 
 	let hasFlameworkIgnited = false;
@@ -172,10 +171,10 @@ export namespace Flamework {
 	}
 
 	/**
-	 * Allow an external module to be bootstrapped by Flamework.ignite()
+	 * Explicitly include an optional class in the startup cycle.
 	 */
-	export function registerExternalClass(ctor: Constructor) {
-		externalClasses.add(ctor);
+	export function registerOptionalClass(ctor: Constructor) {
+		Reflect.defineMetadata(ctor, "flamework:optional", false);
 	}
 
 	/**
@@ -196,9 +195,7 @@ export namespace Flamework {
 		for (const [, ctor] of Reflect.idToObj) {
 			if (!isConstructor(ctor)) continue;
 			if (!Reflect.getMetadata<boolean>(ctor, "flamework:singleton")) continue;
-
-			const isExternal = Reflect.getOwnMetadata<boolean>(ctor, "flamework:isExternal");
-			if (isExternal && !externalClasses.has(ctor)) continue;
+			if (Reflect.getMetadata<boolean>(ctor, "flamework:optional")) continue;
 
 			Modding.resolveSingleton(ctor);
 			logIfVerbose(`Resolving singleton ${ctor}`);
@@ -364,15 +361,12 @@ export const Controller = Modding.createDecorator<[opts?: Flamework.ControllerCo
 });
 
 /**
- * Marks this class as an external class.
+ * Marks a singleton as optional.
  *
- * External classes are designed for packages and won't be
- * bootstrapped unless explicitly specified. Excluding this
- * inside of a package will make the class load as long as
- * it has been loaded.
+ * This singleton will only be included if it is depended on or is explicitly included with `Flamework.registerOptionalClass`.
  */
-export const External = Modding.createDecorator("Class", (descriptor) => {
-	Reflect.defineMetadata(descriptor.object, `flamework:isExternal`, true);
+export const Optional = Modding.createDecorator("Class", (descriptor) => {
+	Reflect.defineMetadata(descriptor.object, `flamework:optional`, true);
 });
 
 /**
