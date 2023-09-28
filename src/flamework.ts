@@ -173,7 +173,7 @@ export namespace Flamework {
 	/**
 	 * Explicitly include an optional class in the startup cycle.
 	 */
-	export function registerOptionalClass(ctor: Constructor) {
+	export function includeOptionalClass(ctor: Constructor) {
 		Reflect.defineMetadata(ctor, "flamework:optional", false);
 	}
 
