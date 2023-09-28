@@ -366,6 +366,11 @@ export const Controller = Modding.createDecorator<[opts?: Flamework.ControllerCo
  * This singleton will only be included if it is depended on or is explicitly included with `Flamework.registerOptionalClass`.
  */
 export const Optional = Modding.createDecorator("Class", (descriptor) => {
+	if (!Reflect.getMetadata<boolean>(descriptor.object, "flamework:singleton")) {
+		warn("'Optional' decorator was applied to a non-singleton.", descriptor.object);
+		warn("Make sure you apply the 'Optional' decorator above other decorators.");
+	}
+
 	Reflect.defineMetadata(descriptor.object, `flamework:optional`, true);
 });
 
