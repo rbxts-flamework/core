@@ -3,7 +3,7 @@ export { Modding } from "./modding";
 export {
 	Controller,
 	Dependency,
-	External,
+	Optional,
 	Service,
 	Flamework,
 	OnInit,
