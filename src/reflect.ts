@@ -11,6 +11,8 @@ export namespace Reflect {
 
 	/** @internal */
 	export const decorators = new Map<string, Array<AbstractConstructor>>();
+
+	/** @internal */
 	export const idToObj = new Map<string, object>();
 
 	const NO_PROP_MARKER = {} as { _nominal_Marker: never };
