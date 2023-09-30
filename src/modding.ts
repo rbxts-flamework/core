@@ -70,6 +70,15 @@ export namespace Modding {
 	const loadingList = new Array<Constructor>();
 
 	/**
+	 * Retrieves an object from its identifier.
+	 *
+	 * The reverse (getting an identifier from an object) can be achieved using the Reflect API directly.
+	 */
+	export function getObjectFromId(id: string) {
+		return Reflect.idToObj.get(id);
+	}
+
+	/**
 	 * Registers a listener for lifecycle events.
 	 */
 	export function addListener(object: object) {
