@@ -567,6 +567,13 @@ export namespace Modding {
 		/** @hidden */ _flamework_macro_caller: { [k in M]: k };
 	};
 
+	/**
+	 * An internal type for intrinsic user macro metadata.
+	 *
+	 * @hidden
+	 */
+	export type Intrinsic<N extends string, M extends unknown[], T = unknown> = T & { _flamework_intrinsic: [N, ...M] };
+
 	function defineDecoratorMetadata(descriptor: PropertyDescriptor, config: unknown[]) {
 		const propertyKey = descriptor.isStatic ? `static:${descriptor.property}` : descriptor.property;
 		Reflect.defineMetadata(
