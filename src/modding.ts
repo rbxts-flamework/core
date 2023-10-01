@@ -572,7 +572,7 @@ export namespace Modding {
 	 *
 	 * @hidden
 	 */
-	export type Intrinsic<N extends string, M extends unknown[], T = unknown> = T & { _flamework_intrinsic: [N, ...M] };
+	export type Intrinsic<N extends string, M extends unknown[], T = void> = T & { _flamework_intrinsic: [N, ...M] };
 
 	function defineDecoratorMetadata(descriptor: PropertyDescriptor, config: unknown[]) {
 		const propertyKey = descriptor.isStatic ? `static:${descriptor.property}` : descriptor.property;
