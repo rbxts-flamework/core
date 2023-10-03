@@ -40,9 +40,9 @@ export namespace Flamework {
 	}
 
 	/** @hidden */
-	export function _addPaths(...args: [...string[]][]) {
+	export function _addPaths(paths: string[][]) {
 		const preloadPaths = new Array<Instance>();
-		for (const arg of args) {
+		for (const arg of paths) {
 			const service = arg.shift();
 			let currentPath: Instance = game.GetService(service as keyof Services);
 			if (service === "StarterPlayer") {
@@ -81,6 +81,11 @@ export namespace Flamework {
 				}
 			}
 		}
+	}
+
+	/** @hidden */
+	export function _addPathsGlob(arg: string) {
+		return _addPaths(Metadata.getGlob(arg) ?? []);
 	}
 
 	/** @hidden */
@@ -281,13 +286,20 @@ export namespace Flamework {
 
 	/**
 	 * Preload the specified paths by requiring all ModuleScript descendants.
+	 *
+	 * @metadata macro intrinsic-arg-shift {@link _addPaths intrinsic-flamework-rewrite}
 	 */
-	export declare function addPaths(...args: string[]): void;
+	export declare function addPaths<T extends string>(path: T, meta?: Modding.Intrinsic<"path", [T]>): void;
 
 	/**
 	 * Preload the specified paths by requiring all ModuleScript descendants.
+	 *
+	 * This function supports globs allowing you to match files or directories based on patterns,
+	 * but it should be noted that this can generate really large lists of paths and it is recommended to capture as few matches as possible.
+	 *
+	 * @metadata macro intrinsic-arg-shift {@link _addPathsGlob intrinsic-flamework-rewrite}
 	 */
-	export declare function addPaths(config: { glob: "file" | "directory" }, ...args: string[]): void;
+	export declare function addPathsGlob<T extends string>(path: T, meta?: Modding.Intrinsic<"pathglob", [T]>): void;
 
 	/**
 	 * Retrieve the identifier for the specified type.
