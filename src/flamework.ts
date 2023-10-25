@@ -317,11 +317,6 @@ export namespace Flamework {
 	export declare function implements<T>(object: unknown): object is T;
 
 	/**
-	 * Creates a type guard from any arbitrary type.
-	 */
-	export declare function createGuard<T>(): t.check<T>;
-
-	/**
 	 * Hash a function using the method used internally by Flamework.
 	 * If a context is provided, then Flamework will create a new hash
 	 * if the specified string does not have one in that context.
@@ -330,6 +325,14 @@ export namespace Flamework {
 	 * @metadata macro {@link meta intrinsic-inline}
 	 */
 	export declare function hash<T extends string, C extends string = never>(meta?: Modding.Hash<T, C>): string;
+
+	/**
+	 * Creates a type guard from any arbitrary type.
+	 * @metadata macro
+	 */
+	export function createGuard<T>(meta?: Modding.Generic<T, "guard">): t.check<T> {
+		return meta!;
+	}
 }
 
 /**
