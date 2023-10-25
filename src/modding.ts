@@ -556,16 +556,26 @@ export namespace Modding {
 	/**
 	 * Retrieves metadata about the specified type using Flamework's user macros.
 	 */
-	export type Generic<T, M extends keyof GenericMetadata<T>> = Pick<GenericMetadata<T>, M> & {
-		/** @hidden */ _flamework_macro_generic: [T, { [k in M]: k }];
+	export type Generic<T, M extends keyof GenericMetadata<T>> = GenericMetadata<T>[M] & {
+		/** @hidden */ _flamework_macro_generic: [T, M];
 	};
+
+	/**
+	 * Retrieves multiple types of metadata from Flamework's user macros.
+	 */
+	export type GenericMany<T, M extends keyof GenericMetadata<T>> = Modding.Many<{ [k in M]: Generic<T, k> }>;
 
 	/**
 	 * Retrieves metadata about the callsite using Flamework's user macros.
 	 */
-	export type Caller<M extends keyof CallerMetadata> = Pick<CallerMetadata, M> & {
-		/** @hidden */ _flamework_macro_caller: { [k in M]: k };
+	export type Caller<M extends keyof CallerMetadata> = CallerMetadata[M] & {
+		/** @hidden */ _flamework_macro_caller: M;
 	};
+
+	/**
+	 * Retrieves multiple types of metadata about the callsite using Flamework's user macros.
+	 */
+	export type CallerMany<M extends keyof CallerMetadata> = Modding.Many<{ [k in M]: Caller<k> }>;
 
 	/**
 	 * An internal type for intrinsic user macro metadata.
