@@ -327,8 +327,9 @@ export namespace Flamework {
 	 * if the specified string does not have one in that context.
 	 * @param str The string to hash
 	 * @param context A scope for the hash
+	 * @metadata macro {@link meta intrinsic-inline}
 	 */
-	export declare function hash(str: string, context?: string): string;
+	export declare function hash<T extends string, C extends string = never>(meta?: Modding.Hash<T, C>): string;
 }
 
 /**
