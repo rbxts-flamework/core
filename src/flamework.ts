@@ -23,7 +23,7 @@ export namespace Flamework {
 	let inactiveThread: thread | undefined;
 
 	/** @hidden */
-	export function resolveDependency(id: string) {
+	export function resolveDependency<T>(id: string) {
 		if (isPreloading) {
 			const [source, line] = debug.info(2, "sl");
 			warn(`[Flamework] Attempting to load dependency '${id}' during preloading.`);
@@ -36,7 +36,7 @@ export namespace Flamework {
 			warn("You can disable this warning in flamework.json");
 			warn(`Script '${source}', Line ${line}`);
 		}
-		return Modding.resolveDependency(ArtificialDependency, id, 0, {});
+		return Modding.resolveDependency(ArtificialDependency, id, 0, {}) as T;
 	}
 
 	/** @hidden */
@@ -354,8 +354,10 @@ Reflect.defineMetadata(ArtificialDependency, "flamework:isArtificial", true);
  *
  * This function can make it harder to stub, test or modify your code so it is recommended to use this macro minimally.
  * It is recommended that you pass dependencies to code that needs it from a singleton, component, etc.
+ *
+ * @metadata macro {@link Flamework.resolveDependency intrinsic-flamework-rewrite}
  */
-export declare function Dependency<T>(ctor?: Constructor<T>): T;
+export declare function Dependency<T>(id?: IntrinsicSymbolId<T>): T;
 
 /**
  * Register a class as a Service.
