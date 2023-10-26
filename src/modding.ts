@@ -157,7 +157,7 @@ export namespace Modding {
 	 */
 	export function onListenerAdded<T extends AnyDecorator>(
 		func: ListenerAddedEvent,
-		id?: IntrinsicSymbolId<T>,
+		id?: IdRef<T>,
 	): RBXScriptConnection;
 
 	/**
@@ -168,7 +168,7 @@ export namespace Modding {
 	 *
 	 * @metadata macro
 	 */
-	export function onListenerAdded<T>(func: (value: T) => void, id?: IntrinsicSymbolId<T>): RBXScriptConnection;
+	export function onListenerAdded<T>(func: (value: T) => void, id?: IdRef<T>): RBXScriptConnection;
 
 	/**
 	 * Registers a listener added event.
@@ -210,7 +210,7 @@ export namespace Modding {
 	 */
 	export function onListenerRemoved<T extends AnyDecorator>(
 		func: ListenerRemovedEvent,
-		id?: IntrinsicSymbolId<T>,
+		id?: IdRef<T>,
 	): RBXScriptConnection;
 
 	/**
@@ -220,7 +220,7 @@ export namespace Modding {
 	 *
 	 * @metadata macro
 	 */
-	export function onListenerRemoved<T>(func: (object: T) => void, id?: IntrinsicSymbolId<T>): RBXScriptConnection;
+	export function onListenerRemoved<T>(func: (object: T) => void, id?: IdRef<T>): RBXScriptConnection;
 
 	/**
 	 * Registers a listener removed event.
@@ -314,9 +314,7 @@ export namespace Modding {
 	 *
 	 * @metadata macro
 	 */
-	export function getDecorators<T extends AnyDecorator>(
-		id?: IntrinsicSymbolId<T>,
-	): AttachedDecorator<DecoratorParameters<T>>[] {
+	export function getDecorators<T extends AnyDecorator>(id?: IdRef<T>): AttachedDecorator<DecoratorParameters<T>>[] {
 		assert(id !== undefined);
 
 		const decorators = Reflect.decorators.get(id);
@@ -341,7 +339,7 @@ export namespace Modding {
 	 */
 	export function getPropertyDecorators<T extends AnyDecorator>(
 		obj: object,
-		id?: IntrinsicSymbolId<T>,
+		id?: IdRef<T>,
 	): Map<string, { arguments: DecoratorParameters<T> }> {
 		const decorators = new Map<string, { arguments: DecoratorParameters<T> }>();
 		assert(id !== undefined);
@@ -364,7 +362,7 @@ export namespace Modding {
 	export function getDecorator<T extends AnyDecorator>(
 		object: object,
 		property?: string,
-		id?: IntrinsicSymbolId<T>,
+		id?: IdRef<T>,
 	): { arguments: DecoratorParameters<T> } | undefined {
 		const decorator = Reflect.getMetadata<Flamework.Decorator>(object, `flamework:decorators.${id}`, property);
 		if (!decorator) return;
@@ -405,7 +403,7 @@ export namespace Modding {
 	 *
 	 * @metadata macro
 	 */
-	export function registerDependency<T>(dependency: DependencyRegistration, id?: IntrinsicSymbolId<T>) {
+	export function registerDependency<T>(dependency: DependencyRegistration, id?: IdRef<T>) {
 		assert(id !== undefined);
 
 		if (typeIs(dependency, "function")) {
@@ -672,6 +670,8 @@ export namespace Modding {
 		 */
 		guard: t.check<T>;
 	}
+
+	type IdRef<T> = string | IntrinsicSymbolId<T>;
 }
 
 interface DependencyResolutionOptions {
