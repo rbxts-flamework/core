@@ -3,7 +3,7 @@ import { t } from "@rbxts/t";
 import { Metadata } from "./metadata";
 import { Modding } from "./modding";
 import { Reflect } from "./reflect";
-import { AbstractConstructor, Constructor, isConstructor } from "./utility";
+import { AbstractConstructor, Constructor, IntrinsicSymbolId, isConstructor } from "./utility";
 
 export namespace Flamework {
 	export interface ServiceConfig {
@@ -308,13 +308,17 @@ export namespace Flamework {
 
 	/**
 	 * Check if the constructor implements the specified interface.
+	 *
+	 * @metadata macro {@link _implements intrinsic-flamework-rewrite}
 	 */
-	export declare function implements<T>(object: AbstractConstructor): boolean;
+	export declare function implements<T>(object: AbstractConstructor, id?: IntrinsicSymbolId<T>): boolean;
 
 	/**
 	 * Check if object implements the specified interface.
+	 *
+	 * @metadata macro {@link _implements intrinsic-flamework-rewrite}
 	 */
-	export declare function implements<T>(object: unknown): object is T;
+	export declare function implements<T>(object: unknown, id?: IntrinsicSymbolId<T>): object is T;
 
 	/**
 	 * Hash a function using the method used internally by Flamework.
@@ -328,6 +332,7 @@ export namespace Flamework {
 
 	/**
 	 * Creates a type guard from any arbitrary type.
+	 *
 	 * @metadata macro
 	 */
 	export function createGuard<T>(meta?: Modding.Generic<T, "guard">): t.check<T> {
