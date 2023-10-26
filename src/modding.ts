@@ -1,6 +1,6 @@
 import Signal from "@rbxts/signal";
 import { Reflect } from "./reflect";
-import { AbstractConstructor, Constructor, isConstructor } from "./utility";
+import { AbstractConstructor, Constructor, IntrinsicSymbolId, isConstructor } from "./utility";
 import type { Flamework } from "./flamework";
 import { t } from "@rbxts/t";
 
@@ -152,16 +152,23 @@ export namespace Modding {
 	 * Fires whenever a listener has a decorator with the specified ID.
 	 *
 	 * Fires for all existing listeners.
+	 *
+	 * @metadata macro
 	 */
-	export function onListenerAdded<T extends AnyDecorator>(func: ListenerAddedEvent, id?: string): RBXScriptConnection;
+	export function onListenerAdded<T extends AnyDecorator>(
+		func: ListenerAddedEvent,
+		id?: IntrinsicSymbolId<T>,
+	): RBXScriptConnection;
 
 	/**
 	 * Registers a listener added event.
 	 * Fires whenever a listener has a lifecycle event with the specified ID.
 	 *
 	 * Fires for all existing listeners.
+	 *
+	 * @metadata macro
 	 */
-	export function onListenerAdded<T>(func: (value: T) => void, id?: string): RBXScriptConnection;
+	export function onListenerAdded<T>(func: (value: T) => void, id?: IntrinsicSymbolId<T>): RBXScriptConnection;
 
 	/**
 	 * Registers a listener added event.
@@ -198,15 +205,22 @@ export namespace Modding {
 	 * Registers a listener removed event.
 	 *
 	 * Fires whenever a listener has a decorator with the specified ID.
+	 *
+	 * @metadata macro
 	 */
-	export function onListenerRemoved<T extends AnyDecorator>(func: ListenerRemovedEvent): RBXScriptConnection;
+	export function onListenerRemoved<T extends AnyDecorator>(
+		func: ListenerRemovedEvent,
+		id?: IntrinsicSymbolId<T>,
+	): RBXScriptConnection;
 
 	/**
 	 * Registers a listener removed event.
 	 *
 	 * Fires whenever a listener has a lifecycle event with the specified ID.
+	 *
+	 * @metadata macro
 	 */
-	export function onListenerRemoved<T>(func: (object: T) => void, id?: string): RBXScriptConnection;
+	export function onListenerRemoved<T>(func: (object: T) => void, id?: IntrinsicSymbolId<T>): RBXScriptConnection;
 
 	/**
 	 * Registers a listener removed event.
@@ -297,8 +311,12 @@ export namespace Modding {
 
 	/**
 	 * Retrieves registered decorators.
+	 *
+	 * @metadata macro
 	 */
-	export function getDecorators<T extends AnyDecorator>(id?: string): AttachedDecorator<DecoratorParameters<T>>[] {
+	export function getDecorators<T extends AnyDecorator>(
+		id?: IntrinsicSymbolId<T>,
+	): AttachedDecorator<DecoratorParameters<T>>[] {
 		assert(id !== undefined);
 
 		const decorators = Reflect.decorators.get(id);
@@ -318,10 +336,12 @@ export namespace Modding {
 
 	/**
 	 * Creates a map of every property using the specified decorator.
+	 *
+	 * @metadata macro
 	 */
 	export function getPropertyDecorators<T extends AnyDecorator>(
 		obj: object,
-		id?: string,
+		id?: IntrinsicSymbolId<T>,
 	): Map<string, { arguments: DecoratorParameters<T> }> {
 		const decorators = new Map<string, { arguments: DecoratorParameters<T> }>();
 		assert(id !== undefined);
@@ -338,11 +358,13 @@ export namespace Modding {
 
 	/**
 	 * Retrieves a decorator from an object or its properties.
+	 *
+	 * @metadata macro
 	 */
 	export function getDecorator<T extends AnyDecorator>(
 		object: object,
 		property?: string,
-		id?: string,
+		id?: IntrinsicSymbolId<T>,
 	): { arguments: DecoratorParameters<T> } | undefined {
 		const decorator = Reflect.getMetadata<Flamework.Decorator>(object, `flamework:decorators.${id}`, property);
 		if (!decorator) return;
@@ -380,8 +402,10 @@ export namespace Modding {
 	 *
 	 * If a function is passed, it will be called, passing the target constructor, every time that ID needs to be resolved.
 	 * Otherwise, the passed object is returned directly.
+	 *
+	 * @metadata macro
 	 */
-	export function registerDependency<T>(dependency: DependencyRegistration, id?: string) {
+	export function registerDependency<T>(dependency: DependencyRegistration, id?: IntrinsicSymbolId<T>) {
 		assert(id !== undefined);
 
 		if (typeIs(dependency, "function")) {
