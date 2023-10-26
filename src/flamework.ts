@@ -303,8 +303,10 @@ export namespace Flamework {
 
 	/**
 	 * Retrieve the identifier for the specified type.
+	 *
+	 * @metadata macro {@link id intrinsic-inline}
 	 */
-	export declare function id<T>(): string;
+	export declare function id<T>(id?: IntrinsicSymbolId<T>): string;
 
 	/**
 	 * Check if the constructor implements the specified interface.
