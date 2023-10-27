@@ -3,7 +3,7 @@ import { t } from "@rbxts/t";
 import { Metadata } from "./metadata";
 import { Modding } from "./modding";
 import { Reflect } from "./reflect";
-import { AbstractConstructor, Constructor, isConstructor } from "./utility";
+import { AbstractConstructor, Constructor, IntrinsicSymbolId, isConstructor } from "./utility";
 
 export namespace Flamework {
 	export interface ServiceConfig {
@@ -23,7 +23,7 @@ export namespace Flamework {
 	let inactiveThread: thread | undefined;
 
 	/** @hidden */
-	export function resolveDependency(id: string) {
+	export function resolveDependency<T>(id: string) {
 		if (isPreloading) {
 			const [source, line] = debug.info(2, "sl");
 			warn(`[Flamework] Attempting to load dependency '${id}' during preloading.`);
@@ -36,7 +36,7 @@ export namespace Flamework {
 			warn("You can disable this warning in flamework.json");
 			warn(`Script '${source}', Line ${line}`);
 		}
-		return Modding.resolveDependency(ArtificialDependency, id, 0, {});
+		return Modding.resolveDependency(ArtificialDependency, id, 0, {}) as T;
 	}
 
 	/** @hidden */
@@ -303,23 +303,24 @@ export namespace Flamework {
 
 	/**
 	 * Retrieve the identifier for the specified type.
+	 *
+	 * @metadata macro {@link id intrinsic-inline}
 	 */
-	export declare function id<T>(): string;
+	export declare function id<T>(id?: IntrinsicSymbolId<T>): string;
 
 	/**
 	 * Check if the constructor implements the specified interface.
+	 *
+	 * @metadata macro {@link _implements intrinsic-flamework-rewrite}
 	 */
-	export declare function implements<T>(object: AbstractConstructor): boolean;
+	export declare function implements<T>(object: AbstractConstructor, id?: IntrinsicSymbolId<T>): boolean;
 
 	/**
 	 * Check if object implements the specified interface.
+	 *
+	 * @metadata macro {@link _implements intrinsic-flamework-rewrite}
 	 */
-	export declare function implements<T>(object: unknown): object is T;
-
-	/**
-	 * Creates a type guard from any arbitrary type.
-	 */
-	export declare function createGuard<T>(): t.check<T>;
+	export declare function implements<T>(object: unknown, id?: IntrinsicSymbolId<T>): object is T;
 
 	/**
 	 * Hash a function using the method used internally by Flamework.
@@ -327,8 +328,18 @@ export namespace Flamework {
 	 * if the specified string does not have one in that context.
 	 * @param str The string to hash
 	 * @param context A scope for the hash
+	 * @metadata macro {@link meta intrinsic-inline}
 	 */
-	export declare function hash(str: string, context?: string): string;
+	export declare function hash<T extends string, C extends string = never>(meta?: Modding.Hash<T, C>): string;
+
+	/**
+	 * Creates a type guard from any arbitrary type.
+	 *
+	 * @metadata macro
+	 */
+	export function createGuard<T>(meta?: Modding.Generic<T, "guard">): t.check<T> {
+		return meta!;
+	}
 }
 
 /**
@@ -343,8 +354,10 @@ Reflect.defineMetadata(ArtificialDependency, "flamework:isArtificial", true);
  *
  * This function can make it harder to stub, test or modify your code so it is recommended to use this macro minimally.
  * It is recommended that you pass dependencies to code that needs it from a singleton, component, etc.
+ *
+ * @metadata macro {@link Flamework.resolveDependency intrinsic-flamework-rewrite}
  */
-export declare function Dependency<T>(ctor?: Constructor<T>): T;
+export declare function Dependency<T>(id?: IntrinsicSymbolId<T>): T;
 
 /**
  * Register a class as a Service.

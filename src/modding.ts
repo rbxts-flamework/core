@@ -1,6 +1,6 @@
 import Signal from "@rbxts/signal";
 import { Reflect } from "./reflect";
-import { AbstractConstructor, Constructor, isConstructor } from "./utility";
+import { AbstractConstructor, Constructor, IntrinsicSymbolId, isConstructor } from "./utility";
 import type { Flamework } from "./flamework";
 import { t } from "@rbxts/t";
 
@@ -152,16 +152,23 @@ export namespace Modding {
 	 * Fires whenever a listener has a decorator with the specified ID.
 	 *
 	 * Fires for all existing listeners.
+	 *
+	 * @metadata macro
 	 */
-	export function onListenerAdded<T extends AnyDecorator>(func: ListenerAddedEvent, id?: string): RBXScriptConnection;
+	export function onListenerAdded<T extends AnyDecorator>(
+		func: ListenerAddedEvent,
+		id?: IdRef<T>,
+	): RBXScriptConnection;
 
 	/**
 	 * Registers a listener added event.
 	 * Fires whenever a listener has a lifecycle event with the specified ID.
 	 *
 	 * Fires for all existing listeners.
+	 *
+	 * @metadata macro
 	 */
-	export function onListenerAdded<T>(func: (value: T) => void, id?: string): RBXScriptConnection;
+	export function onListenerAdded<T>(func: (value: T) => void, id?: IdRef<T>): RBXScriptConnection;
 
 	/**
 	 * Registers a listener added event.
@@ -198,15 +205,22 @@ export namespace Modding {
 	 * Registers a listener removed event.
 	 *
 	 * Fires whenever a listener has a decorator with the specified ID.
+	 *
+	 * @metadata macro
 	 */
-	export function onListenerRemoved<T extends AnyDecorator>(func: ListenerRemovedEvent): RBXScriptConnection;
+	export function onListenerRemoved<T extends AnyDecorator>(
+		func: ListenerRemovedEvent,
+		id?: IdRef<T>,
+	): RBXScriptConnection;
 
 	/**
 	 * Registers a listener removed event.
 	 *
 	 * Fires whenever a listener has a lifecycle event with the specified ID.
+	 *
+	 * @metadata macro
 	 */
-	export function onListenerRemoved<T>(func: (object: T) => void, id?: string): RBXScriptConnection;
+	export function onListenerRemoved<T>(func: (object: T) => void, id?: IdRef<T>): RBXScriptConnection;
 
 	/**
 	 * Registers a listener removed event.
@@ -297,8 +311,10 @@ export namespace Modding {
 
 	/**
 	 * Retrieves registered decorators.
+	 *
+	 * @metadata macro
 	 */
-	export function getDecorators<T extends AnyDecorator>(id?: string): AttachedDecorator<DecoratorParameters<T>>[] {
+	export function getDecorators<T extends AnyDecorator>(id?: IdRef<T>): AttachedDecorator<DecoratorParameters<T>>[] {
 		assert(id !== undefined);
 
 		const decorators = Reflect.decorators.get(id);
@@ -318,10 +334,12 @@ export namespace Modding {
 
 	/**
 	 * Creates a map of every property using the specified decorator.
+	 *
+	 * @metadata macro
 	 */
 	export function getPropertyDecorators<T extends AnyDecorator>(
 		obj: object,
-		id?: string,
+		id?: IdRef<T>,
 	): Map<string, { arguments: DecoratorParameters<T> }> {
 		const decorators = new Map<string, { arguments: DecoratorParameters<T> }>();
 		assert(id !== undefined);
@@ -338,11 +356,13 @@ export namespace Modding {
 
 	/**
 	 * Retrieves a decorator from an object or its properties.
+	 *
+	 * @metadata macro
 	 */
 	export function getDecorator<T extends AnyDecorator>(
 		object: object,
 		property?: string,
-		id?: string,
+		id?: IdRef<T>,
 	): { arguments: DecoratorParameters<T> } | undefined {
 		const decorator = Reflect.getMetadata<Flamework.Decorator>(object, `flamework:decorators.${id}`, property);
 		if (!decorator) return;
@@ -380,8 +400,10 @@ export namespace Modding {
 	 *
 	 * If a function is passed, it will be called, passing the target constructor, every time that ID needs to be resolved.
 	 * Otherwise, the passed object is returned directly.
+	 *
+	 * @metadata macro
 	 */
-	export function registerDependency<T>(dependency: DependencyRegistration, id?: string) {
+	export function registerDependency<T>(dependency: DependencyRegistration, id?: IdRef<T>) {
 		assert(id !== undefined);
 
 		if (typeIs(dependency, "function")) {
@@ -496,23 +518,6 @@ export namespace Modding {
 	}
 
 	/**
-	 * @hidden
-	 * @deprecated
-	 */
-	export function macro<T>(values: string | [string, unknown][], directValue?: unknown): T {
-		if (typeIs(values, "string")) {
-			return {
-				[values]: directValue,
-			} as never;
-		}
-		const result = {} as Record<string, unknown>;
-		for (const [name, value] of values) {
-			result[name] = value;
-		}
-		return result as T;
-	}
-
-	/**
 	 * This API allows you to use more complex queries, inspect types, generate arbitrary objects based on types, etc.
 	 *
 	 * @experimental This API is considered experimental and may change.
@@ -556,16 +561,26 @@ export namespace Modding {
 	/**
 	 * Retrieves metadata about the specified type using Flamework's user macros.
 	 */
-	export type Generic<T, M extends keyof GenericMetadata<T>> = Pick<GenericMetadata<T>, M> & {
-		/** @hidden */ _flamework_macro_generic: [T, { [k in M]: k }];
+	export type Generic<T, M extends keyof GenericMetadata<T>> = GenericMetadata<T>[M] & {
+		/** @hidden */ _flamework_macro_generic: [T, M];
 	};
+
+	/**
+	 * Retrieves multiple types of metadata from Flamework's user macros.
+	 */
+	export type GenericMany<T, M extends keyof GenericMetadata<T>> = Modding.Many<{ [k in M]: Generic<T, k> }>;
 
 	/**
 	 * Retrieves metadata about the callsite using Flamework's user macros.
 	 */
-	export type Caller<M extends keyof CallerMetadata> = Pick<CallerMetadata, M> & {
-		/** @hidden */ _flamework_macro_caller: { [k in M]: k };
+	export type Caller<M extends keyof CallerMetadata> = CallerMetadata[M] & {
+		/** @hidden */ _flamework_macro_caller: M;
 	};
+
+	/**
+	 * Retrieves multiple types of metadata about the callsite using Flamework's user macros.
+	 */
+	export type CallerMany<M extends keyof CallerMetadata> = Modding.Many<{ [k in M]: Caller<k> }>;
 
 	/**
 	 * An internal type for intrinsic user macro metadata.
@@ -638,6 +653,8 @@ export namespace Modding {
 		 */
 		guard: t.check<T>;
 	}
+
+	type IdRef<T> = string | IntrinsicSymbolId<T>;
 }
 
 interface DependencyResolutionOptions {
