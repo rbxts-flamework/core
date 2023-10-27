@@ -518,23 +518,6 @@ export namespace Modding {
 	}
 
 	/**
-	 * @hidden
-	 * @deprecated
-	 */
-	export function macro<T>(values: string | [string, unknown][], directValue?: unknown): T {
-		if (typeIs(values, "string")) {
-			return {
-				[values]: directValue,
-			} as never;
-		}
-		const result = {} as Record<string, unknown>;
-		for (const [name, value] of values) {
-			result[name] = value;
-		}
-		return result as T;
-	}
-
-	/**
 	 * This API allows you to use more complex queries, inspect types, generate arbitrary objects based on types, etc.
 	 *
 	 * @experimental This API is considered experimental and may change.
