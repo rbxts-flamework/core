@@ -16,6 +16,10 @@ export namespace Flamework {
 		arguments: unknown[];
 	}
 
+	// RuntimeLib, which is required to import packages
+	const tsImpl = (_G as Map<unknown, unknown>).get(script) as {
+		import: (...modules: LuaSourceContainer[]) => unknown;
+	};
 	const isProfiling = Metadata.isProfiling();
 
 	let hasFlameworkIgnited = false;
@@ -57,12 +61,10 @@ export namespace Flamework {
 			preloadPaths.push(currentPath);
 		}
 
-		const global = _G as Map<unknown, unknown>;
 		const preload = (moduleScript: ModuleScript) => {
 			isPreloading = true;
-			global.set(moduleScript, global.get(script));
 			const start = os.clock();
-			const [success, value] = pcall(require, moduleScript);
+			const [success, value] = pcall(() => tsImpl.import(script, moduleScript));
 			const endTime = math.floor((os.clock() - start) * 1000);
 			isPreloading = false;
 			if (!success) {
