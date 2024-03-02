@@ -220,7 +220,7 @@ export namespace Reflect {
 			id,
 			isStatic,
 			object,
-			contructor: isConstructor(object) ? object : undefined,
+			constructor: isConstructor(object) ? object : undefined,
 			property,
 		};
 
