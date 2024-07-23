@@ -362,9 +362,30 @@ Reflect.defineMetadata(ArtificialDependency, "flamework:isArtificial", true);
 export declare function Dependency<T>(id?: IntrinsicSymbolId<T>): T;
 
 /**
+ * Inject dependency.
+ *
+ * @metadata flamework:type
+ */
+export const Inject = Modding.createDecorator<[]>("Property", (descriptor, []) => {
+	const typeSpecifier = Reflect.getMetadata<string>(descriptor.object, "flamework:type", descriptor.property);
+
+	if (typeSpecifier === undefined) {
+		throw "Injected type not found";
+	}
+
+	let map = Reflect.getMetadata<Map<string, string>>(descriptor.object, "flamework:injects");
+
+	if (!map) {
+		map = new Map();
+		Reflect.defineMetadata(descriptor.object, "flamework:injects", map);
+	}
+
+	map.set(descriptor.property, typeSpecifier);
+});
+
+/**
  * Register a class as a Service.
  *
- * @server
  * @metadata flamework:implements flamework:parameters injectable
  */
 export const Service = Modding.createDecorator<[opts?: Flamework.ServiceConfig]>("Class", (descriptor, [cfg]) => {

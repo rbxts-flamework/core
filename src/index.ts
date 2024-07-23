@@ -11,4 +11,5 @@ export {
 	OnRender,
 	OnStart,
 	OnTick,
+	Inject,
 } from "./flamework";

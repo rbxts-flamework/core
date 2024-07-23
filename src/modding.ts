@@ -437,6 +437,13 @@ export namespace Modding {
 		return [
 			obj as T,
 			() => {
+				const injectedDependencies = Reflect.getMetadata<Map<string, string>>(ctor, "flamework:injects");
+
+				injectedDependencies?.forEach((specType, fieldName) => {
+					obj[fieldName as never] = resolveDependency(ctor, specType, 0, options) as never;
+				});
+
+				// Resolve dependencies for the constructor
 				const dependencies = Reflect.getMetadata<string[]>(ctor, "flamework:parameters");
 				const constructorDependencies: never[] = [];
 				if (dependencies) {
