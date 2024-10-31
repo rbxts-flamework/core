@@ -192,8 +192,6 @@ export namespace Flamework {
 	 *
 	 * You should preload all necessary directories before calling this
 	 * as newly registered classes will not run their lifecycle events.
-	 *
-	 * @returns All the dependencies that have been loaded.
 	 */
 	export function ignite() {
 		if (hasFlameworkIgnited) throw "Flamework.ignite() should only be called once";
