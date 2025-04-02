@@ -8,6 +8,12 @@
 		"$className": "Folder",
 		"out": {
 			"$path": "out"
+		},
+		"node_modules": {
+			"$className": "Folder",
+			"@rbxts": {
+				"$path": "node_modules/@rbxts"
+			}
 		}
 	}
 }
