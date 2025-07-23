@@ -264,14 +264,14 @@ export namespace Flamework {
 			}
 		});
 
-		RunService.Stepped.Connect((time, dt) => {
+		RunService.PreSimulation.Connect((dt) => {
 			for (const [dependency, identifier] of physics) {
-				reuseThread(profileYielding(() => dependency.onPhysics(dt, time), identifier));
+				reuseThread(profileYielding(() => dependency.onPhysics(dt), identifier));
 			}
 		});
 
 		if (RunService.IsClient()) {
-			RunService.RenderStepped.Connect((dt) => {
+			RunService.PreRender.Connect((dt) => {
 				for (const [dependency, identifier] of render) {
 					reuseThread(profileYielding(() => dependency.onRender(dt), identifier));
 				}
@@ -443,7 +443,7 @@ export interface OnTick {
 
 /**
  * Hook into the OnPhysics lifecycle event.
- * Equivalent to: RunService.Stepped
+ * Equivalent to: RunService.PreSimulation
  */
 export interface OnPhysics {
 	/**
@@ -451,12 +451,12 @@ export interface OnPhysics {
 	 *
 	 * @hideinherited
 	 */
-	onPhysics(dt: number, time: number): void;
+	onPhysics(dt: number): void;
 }
 
 /**
  * Hook into the OnRender lifecycle event.
- * Equivalent to: RunService.RenderStepped
+ * Equivalent to: RunService.PreRender
  *
  * @client
  */
